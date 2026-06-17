@@ -1,0 +1,757 @@
+{
+  "applyable": true,
+  "complete": true,
+  "configuration": {
+    "provider_config": {
+      "aws": {
+        "expressions": {
+          "access_key": {
+            "constant_value": "test"
+          },
+          "region": {
+            "constant_value": "us-east-1"
+          },
+          "secret_key": {
+            "constant_value": "test"
+          },
+          "skip_credentials_validation": {
+            "constant_value": true
+          },
+          "skip_metadata_api_check": {
+            "constant_value": true
+          },
+          "skip_requesting_account_id": {
+            "constant_value": true
+          }
+        },
+        "full_name": "registry.terraform.io/hashicorp/aws",
+        "name": "aws",
+        "version_constraint": "\u003e= 5.0.0"
+      }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_distribution.private",
+          "expressions": {
+            "aliases": {
+              "constant_value": [
+                "private.example.test"
+              ]
+            },
+            "default_cache_behavior": [
+              {
+                "allowed_methods": {
+                  "constant_value": [
+                    "GET",
+                    "HEAD"
+                  ]
+                },
+                "cache_policy_id": {
+                  "constant_value": "658327ea-f89d-4fab-a63d-7e88639e58f6"
+                },
+                "cached_methods": {
+                  "constant_value": [
+                    "GET",
+                    "HEAD"
+                  ]
+                },
+                "target_origin_id": {
+                  "constant_value": "s3"
+                },
+                "trusted_key_groups": {
+                  "references": [
+                    "aws_cloudfront_key_group.signers.id",
+                    "aws_cloudfront_key_group.signers"
+                  ]
+                },
+                "viewer_protocol_policy": {
+                  "constant_value": "https-only"
+                }
+              }
+            ],
+            "enabled": {
+              "constant_value": true
+            },
+            "origin": [
+              {
+                "domain_name": {
+                  "constant_value": "private-assets.s3.us-east-1.amazonaws.com"
+                },
+                "origin_access_control_id": {
+                  "references": [
+                    "aws_cloudfront_origin_access_control.assets.id",
+                    "aws_cloudfront_origin_access_control.assets"
+                  ]
+                },
+                "origin_id": {
+                  "constant_value": "s3"
+                },
+                "s3_origin_config": [
+                  {
+                    "origin_access_identity": {
+                      "constant_value": ""
+                    }
+                  }
+                ]
+              }
+            ],
+            "restrictions": [
+              {
+                "geo_restriction": [
+                  {
+                    "locations": {
+                      "constant_value": [
+                        "US",
+                        "JP"
+                      ]
+                    },
+                    "restriction_type": {
+                      "constant_value": "whitelist"
+                    }
+                  }
+                ]
+              }
+            ],
+            "viewer_certificate": [
+              {
+                "cloudfront_default_certificate": {
+                  "constant_value": true
+                }
+              }
+            ]
+          },
+          "mode": "managed",
+          "name": "private",
+          "provider_config_key": "aws",
+          "schema_version": 1,
+          "type": "aws_cloudfront_distribution"
+        },
+        {
+          "address": "aws_cloudfront_key_group.signers",
+          "expressions": {
+            "comment": {
+              "constant_value": "Key group authorized to sign URLs"
+            },
+            "items": {
+              "references": [
+                "aws_cloudfront_public_key.signing_key.id",
+                "aws_cloudfront_public_key.signing_key"
+              ]
+            },
+            "name": {
+              "constant_value": "url-signers"
+            }
+          },
+          "mode": "managed",
+          "name": "signers",
+          "provider_config_key": "aws",
+          "schema_version": 0,
+          "type": "aws_cloudfront_key_group"
+        },
+        {
+          "address": "aws_cloudfront_origin_access_control.assets",
+          "expressions": {
+            "description": {
+              "constant_value": "SigV4 signing for the private S3 origin"
+            },
+            "name": {
+              "constant_value": "private-assets-oac"
+            },
+            "origin_access_control_origin_type": {
+              "constant_value": "s3"
+            },
+            "signing_behavior": {
+              "constant_value": "always"
+            },
+            "signing_protocol": {
+              "constant_value": "sigv4"
+            }
+          },
+          "mode": "managed",
+          "name": "assets",
+          "provider_config_key": "aws",
+          "schema_version": 0,
+          "type": "aws_cloudfront_origin_access_control"
+        },
+        {
+          "address": "aws_cloudfront_public_key.signing_key",
+          "expressions": {
+            "comment": {
+              "constant_value": "Public key for verifying signed URLs"
+            },
+            "encoded_key": {
+              "references": [
+                "path.module"
+              ]
+            },
+            "name": {
+              "constant_value": "url-signing-key"
+            }
+          },
+          "mode": "managed",
+          "name": "signing_key",
+          "provider_config_key": "aws",
+          "schema_version": 0,
+          "type": "aws_cloudfront_public_key"
+        }
+      ]
+    }
+  },
+  "errored": false,
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_distribution.private",
+          "identity": {
+            "account_id": null,
+            "id": null
+          },
+          "identity_schema_version": 0,
+          "mode": "managed",
+          "name": "private",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "sensitive_values": {
+            "aliases": [
+              false
+            ],
+            "cache_tag_config": [],
+            "connection_function_association": [],
+            "custom_error_response": [],
+            "default_cache_behavior": [
+              {
+                "allowed_methods": [
+                  false,
+                  false
+                ],
+                "cached_methods": [
+                  false,
+                  false
+                ],
+                "forwarded_values": [],
+                "function_association": [],
+                "grpc_config": [],
+                "lambda_function_association": [],
+                "trusted_key_groups": [],
+                "trusted_signers": []
+              }
+            ],
+            "logging_config": [],
+            "ordered_cache_behavior": [],
+            "origin": [
+              {
+                "custom_header": [],
+                "custom_origin_config": [],
+                "origin_shield": [],
+                "s3_origin_config": [
+                  {}
+                ],
+                "vpc_origin_config": []
+              }
+            ],
+            "origin_group": [],
+            "restrictions": [
+              {
+                "geo_restriction": [
+                  {
+                    "locations": [
+                      false,
+                      false
+                    ]
+                  }
+                ]
+              }
+            ],
+            "tags_all": {},
+            "trusted_key_groups": [],
+            "trusted_signers": [],
+            "viewer_certificate": [
+              {}
+            ],
+            "viewer_mtls_config": []
+          },
+          "type": "aws_cloudfront_distribution",
+          "values": {
+            "aliases": [
+              "private.example.test"
+            ],
+            "anycast_ip_list_id": null,
+            "cache_tag_config": [],
+            "comment": null,
+            "connection_function_association": [],
+            "custom_error_response": [],
+            "default_cache_behavior": [
+              {
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cache_policy_id": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "compress": false,
+                "field_level_encryption_id": null,
+                "forwarded_values": [],
+                "function_association": [],
+                "lambda_function_association": [],
+                "min_ttl": 0,
+                "origin_request_policy_id": null,
+                "realtime_log_config_arn": null,
+                "response_headers_policy_id": null,
+                "smooth_streaming": null,
+                "target_origin_id": "s3",
+                "viewer_protocol_policy": "https-only"
+              }
+            ],
+            "default_root_object": null,
+            "enabled": true,
+            "http_version": "http2",
+            "is_ipv6_enabled": false,
+            "logging_config": [],
+            "ordered_cache_behavior": [],
+            "origin": [
+              {
+                "connection_attempts": 3,
+                "connection_timeout": 10,
+                "custom_header": [],
+                "custom_origin_config": [],
+                "domain_name": "private-assets.s3.us-east-1.amazonaws.com",
+                "origin_id": "s3",
+                "origin_path": "",
+                "origin_shield": [],
+                "s3_origin_config": [
+                  {
+                    "origin_access_identity": ""
+                  }
+                ],
+                "vpc_origin_config": []
+              }
+            ],
+            "origin_group": [],
+            "price_class": "PriceClass_All",
+            "restrictions": [
+              {
+                "geo_restriction": [
+                  {
+                    "locations": [
+                      "JP",
+                      "US"
+                    ],
+                    "restriction_type": "whitelist"
+                  }
+                ]
+              }
+            ],
+            "retain_on_delete": false,
+            "staging": false,
+            "tags": null,
+            "viewer_certificate": [
+              {
+                "acm_certificate_arn": null,
+                "cloudfront_default_certificate": true,
+                "iam_certificate_id": null,
+                "minimum_protocol_version": "TLSv1",
+                "ssl_support_method": null
+              }
+            ],
+            "viewer_mtls_config": [],
+            "wait_for_deployment": true,
+            "web_acl_id": null
+          }
+        },
+        {
+          "address": "aws_cloudfront_key_group.signers",
+          "mode": "managed",
+          "name": "signers",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "sensitive_values": {
+            "items": []
+          },
+          "type": "aws_cloudfront_key_group",
+          "values": {
+            "comment": "Key group authorized to sign URLs",
+            "name": "url-signers"
+          }
+        },
+        {
+          "address": "aws_cloudfront_origin_access_control.assets",
+          "mode": "managed",
+          "name": "assets",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "sensitive_values": {},
+          "type": "aws_cloudfront_origin_access_control",
+          "values": {
+            "description": "SigV4 signing for the private S3 origin",
+            "name": "private-assets-oac",
+            "origin_access_control_origin_type": "s3",
+            "signing_behavior": "always",
+            "signing_protocol": "sigv4"
+          }
+        },
+        {
+          "address": "aws_cloudfront_public_key.signing_key",
+          "mode": "managed",
+          "name": "signing_key",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 0,
+          "sensitive_values": {},
+          "type": "aws_cloudfront_public_key",
+          "values": {
+            "comment": "Public key for verifying signed URLs",
+            "encoded_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiMix7pHwG2/hDGTJ7emq\nJI+KlhxWkzOx8qd3bbw4ukndl4JulOcUzSQTfPi0mMBhFBfUCrWbOLPRzyygH/Cv\nsd/pYz6s9V2R5S5MPPkqk/itqIzj1ad5tcYQpp96XbOvf0CQUm1qBptJnumTPHoV\nMd7XljTcCTYqHOvGxWp99gjbY32rBjdatcNOv1qeKkHpO5Y4THLMOrM74u+CAXiW\nxF5g98KY3VaHyODXEybNij/EeGpsCKYTx/pEH+6xY8eO8/v6ebHsMRN415URJJ6N\n1iA8c1tWzFVQ5pzZDEdpI8Mmwr6wzqi3zhjVmu6CoOCnQpz2tAR/dBBcSA7ytWTC\nbwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "name": "url-signing-key"
+          }
+        }
+      ]
+    }
+  },
+  "relevant_attributes": [
+    {
+      "attribute": [
+        "id"
+      ],
+      "resource": "aws_cloudfront_key_group.signers"
+    },
+    {
+      "attribute": [
+        "id"
+      ],
+      "resource": "aws_cloudfront_origin_access_control.assets"
+    },
+    {
+      "attribute": [
+        "id"
+      ],
+      "resource": "aws_cloudfront_public_key.signing_key"
+    }
+  ],
+  "resource_changes": [
+    {
+      "address": "aws_cloudfront_distribution.private",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "aliases": [
+            "private.example.test"
+          ],
+          "anycast_ip_list_id": null,
+          "cache_tag_config": [],
+          "comment": null,
+          "connection_function_association": [],
+          "custom_error_response": [],
+          "default_cache_behavior": [
+            {
+              "allowed_methods": [
+                "GET",
+                "HEAD"
+              ],
+              "cache_policy_id": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+              "cached_methods": [
+                "GET",
+                "HEAD"
+              ],
+              "compress": false,
+              "field_level_encryption_id": null,
+              "forwarded_values": [],
+              "function_association": [],
+              "lambda_function_association": [],
+              "min_ttl": 0,
+              "origin_request_policy_id": null,
+              "realtime_log_config_arn": null,
+              "response_headers_policy_id": null,
+              "smooth_streaming": null,
+              "target_origin_id": "s3",
+              "viewer_protocol_policy": "https-only"
+            }
+          ],
+          "default_root_object": null,
+          "enabled": true,
+          "http_version": "http2",
+          "is_ipv6_enabled": false,
+          "logging_config": [],
+          "ordered_cache_behavior": [],
+          "origin": [
+            {
+              "connection_attempts": 3,
+              "connection_timeout": 10,
+              "custom_header": [],
+              "custom_origin_config": [],
+              "domain_name": "private-assets.s3.us-east-1.amazonaws.com",
+              "origin_id": "s3",
+              "origin_path": "",
+              "origin_shield": [],
+              "s3_origin_config": [
+                {
+                  "origin_access_identity": ""
+                }
+              ],
+              "vpc_origin_config": []
+            }
+          ],
+          "origin_group": [],
+          "price_class": "PriceClass_All",
+          "restrictions": [
+            {
+              "geo_restriction": [
+                {
+                  "locations": [
+                    "JP",
+                    "US"
+                  ],
+                  "restriction_type": "whitelist"
+                }
+              ]
+            }
+          ],
+          "retain_on_delete": false,
+          "staging": false,
+          "tags": null,
+          "viewer_certificate": [
+            {
+              "acm_certificate_arn": null,
+              "cloudfront_default_certificate": true,
+              "iam_certificate_id": null,
+              "minimum_protocol_version": "TLSv1",
+              "ssl_support_method": null
+            }
+          ],
+          "viewer_mtls_config": [],
+          "wait_for_deployment": true,
+          "web_acl_id": null
+        },
+        "after_identity": {
+          "account_id": null,
+          "id": null
+        },
+        "after_sensitive": {
+          "aliases": [
+            false
+          ],
+          "cache_tag_config": [],
+          "connection_function_association": [],
+          "custom_error_response": [],
+          "default_cache_behavior": [
+            {
+              "allowed_methods": [
+                false,
+                false
+              ],
+              "cached_methods": [
+                false,
+                false
+              ],
+              "forwarded_values": [],
+              "function_association": [],
+              "grpc_config": [],
+              "lambda_function_association": [],
+              "trusted_key_groups": [],
+              "trusted_signers": []
+            }
+          ],
+          "logging_config": [],
+          "ordered_cache_behavior": [],
+          "origin": [
+            {
+              "custom_header": [],
+              "custom_origin_config": [],
+              "origin_shield": [],
+              "s3_origin_config": [
+                {}
+              ],
+              "vpc_origin_config": []
+            }
+          ],
+          "origin_group": [],
+          "restrictions": [
+            {
+              "geo_restriction": [
+                {
+                  "locations": [
+                    false,
+                    false
+                  ]
+                }
+              ]
+            }
+          ],
+          "tags_all": {},
+          "trusted_key_groups": [],
+          "trusted_signers": [],
+          "viewer_certificate": [
+            {}
+          ],
+          "viewer_mtls_config": []
+        },
+        "after_unknown": {
+          "aliases": [
+            false
+          ],
+          "arn": true,
+          "cache_tag_config": [],
+          "caller_reference": true,
+          "connection_function_association": [],
+          "continuous_deployment_policy_id": true,
+          "custom_error_response": [],
+          "default_cache_behavior": [
+            {
+              "allowed_methods": [
+                false,
+                false
+              ],
+              "cached_methods": [
+                false,
+                false
+              ],
+              "default_ttl": true,
+              "forwarded_values": [],
+              "function_association": [],
+              "grpc_config": true,
+              "lambda_function_association": [],
+              "max_ttl": true,
+              "trusted_key_groups": true,
+              "trusted_signers": true
+            }
+          ],
+          "domain_name": true,
+          "etag": true,
+          "hosted_zone_id": true,
+          "id": true,
+          "in_progress_validation_batches": true,
+          "last_modified_time": true,
+          "logging_config": [],
+          "logging_v1_enabled": true,
+          "ordered_cache_behavior": [],
+          "origin": [
+            {
+              "custom_header": [],
+              "custom_origin_config": [],
+              "origin_access_control_id": true,
+              "origin_shield": [],
+              "response_completion_timeout": true,
+              "s3_origin_config": [
+                {}
+              ],
+              "vpc_origin_config": []
+            }
+          ],
+          "origin_group": [],
+          "restrictions": [
+            {
+              "geo_restriction": [
+                {
+                  "locations": [
+                    false,
+                    false
+                  ]
+                }
+              ]
+            }
+          ],
+          "status": true,
+          "tags_all": true,
+          "trusted_key_groups": true,
+          "trusted_signers": true,
+          "viewer_certificate": [
+            {}
+          ],
+          "viewer_mtls_config": []
+        },
+        "before": null,
+        "before_sensitive": false
+      },
+      "mode": "managed",
+      "name": "private",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_cloudfront_distribution"
+    },
+    {
+      "address": "aws_cloudfront_key_group.signers",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "comment": "Key group authorized to sign URLs",
+          "name": "url-signers"
+        },
+        "after_sensitive": {
+          "items": []
+        },
+        "after_unknown": {
+          "etag": true,
+          "id": true,
+          "items": true
+        },
+        "before": null,
+        "before_sensitive": false
+      },
+      "mode": "managed",
+      "name": "signers",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_cloudfront_key_group"
+    },
+    {
+      "address": "aws_cloudfront_origin_access_control.assets",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "description": "SigV4 signing for the private S3 origin",
+          "name": "private-assets-oac",
+          "origin_access_control_origin_type": "s3",
+          "signing_behavior": "always",
+          "signing_protocol": "sigv4"
+        },
+        "after_sensitive": {},
+        "after_unknown": {
+          "arn": true,
+          "etag": true,
+          "id": true
+        },
+        "before": null,
+        "before_sensitive": false
+      },
+      "mode": "managed",
+      "name": "assets",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_cloudfront_origin_access_control"
+    },
+    {
+      "address": "aws_cloudfront_public_key.signing_key",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "comment": "Public key for verifying signed URLs",
+          "encoded_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiMix7pHwG2/hDGTJ7emq\nJI+KlhxWkzOx8qd3bbw4ukndl4JulOcUzSQTfPi0mMBhFBfUCrWbOLPRzyygH/Cv\nsd/pYz6s9V2R5S5MPPkqk/itqIzj1ad5tcYQpp96XbOvf0CQUm1qBptJnumTPHoV\nMd7XljTcCTYqHOvGxWp99gjbY32rBjdatcNOv1qeKkHpO5Y4THLMOrM74u+CAXiW\nxF5g98KY3VaHyODXEybNij/EeGpsCKYTx/pEH+6xY8eO8/v6ebHsMRN415URJJ6N\n1iA8c1tWzFVQ5pzZDEdpI8Mmwr6wzqi3zhjVmu6CoOCnQpz2tAR/dBBcSA7ytWTC\nbwIDAQAB\n-----END PUBLIC KEY-----\n",
+          "name": "url-signing-key"
+        },
+        "after_sensitive": {},
+        "after_unknown": {
+          "caller_reference": true,
+          "etag": true,
+          "id": true,
+          "name_prefix": true
+        },
+        "before": null,
+        "before_sensitive": false
+      },
+      "mode": "managed",
+      "name": "signing_key",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_cloudfront_public_key"
+    }
+  ],
+  "terraform_version": "1.15.6"
+}

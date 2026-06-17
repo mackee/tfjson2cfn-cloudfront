@@ -30,9 +30,15 @@ type Result struct {
 type resourceConverter func(r plannedResource, cfg map[string]any) (cfnType string, properties *yaml.Node)
 
 var converters = map[string]resourceConverter{
-	"aws_cloudfront_distribution":    convertDistribution,
-	"aws_cloudfront_function":        convertFunction,
-	"aws_cloudfront_key_value_store": convertKeyValueStore,
+	"aws_cloudfront_distribution":            convertDistribution,
+	"aws_cloudfront_function":                convertFunction,
+	"aws_cloudfront_key_value_store":         convertKeyValueStore,
+	"aws_cloudfront_cache_policy":            convertCachePolicy,
+	"aws_cloudfront_origin_request_policy":   convertOriginRequestPolicy,
+	"aws_cloudfront_response_headers_policy": convertResponseHeadersPolicy,
+	"aws_cloudfront_public_key":              convertPublicKey,
+	"aws_cloudfront_key_group":               convertKeyGroup,
+	"aws_cloudfront_origin_access_control":   convertOriginAccessControl,
 }
 
 // Convert reads `terraform show -json` output and returns a CloudFormation

@@ -1,0 +1,97 @@
+# Custom cache, origin-request, and response-headers policies in front of an S3
+# origin.
+#
+#   localfront serve --template examples/custom-policies/template.yaml \
+#     --s3-endpoint http://localhost:9000 \
+#     --s3-access-key rustfsadmin --s3-secret-key rustfsadmin
+#
+# The distribution references each policy by id; Terraform reports those ids as
+# known-after-apply, so the converter restores them as !Ref.
+Resources:
+  LongCache:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: long-cache
+        Comment: Cache for a day, keyed on a couple of query strings
+        MinTTL: 1
+        MaxTTL: 31536000
+        DefaultTTL: 86400
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers: [Origin]
+          QueryStringsConfig:
+            QueryStringBehavior: whitelist
+            QueryStrings: [version, lang]
+
+  ForwardAll:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: forward-all
+        Comment: Forward all cookies and a header allowlist to the origin
+        CookiesConfig:
+          CookieBehavior: all
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers: [CloudFront-Viewer-Country, User-Agent]
+        QueryStringsConfig:
+          QueryStringBehavior: all
+
+  Security:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: security-headers
+        Comment: CORS plus a few security headers
+        CorsConfig:
+          AccessControlAllowCredentials: false
+          AccessControlAllowHeaders:
+            Items: ["*"]
+          AccessControlAllowMethods:
+            Items: [GET, HEAD, OPTIONS]
+          AccessControlAllowOrigins:
+            Items: [https://app.example.test]
+          AccessControlMaxAgeSec: 600
+          OriginOverride: true
+        CustomHeadersConfig:
+          Items:
+            - Header: X-Powered-By
+              Value: localfront
+              Override: true
+        SecurityHeadersConfig:
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 63072000
+            IncludeSubdomains: true
+            Preload: true
+            Override: true
+        ServerTimingHeadersConfig:
+          Enabled: true
+          SamplingRate: 10
+
+  Site:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Aliases: [app.example.test]
+        Origins:
+          - Id: assets
+            DomainName: app-assets.s3.us-east-1.amazonaws.com
+            S3OriginConfig: {}
+        DefaultCacheBehavior:
+          TargetOriginId: assets
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: !Ref LongCache
+          OriginRequestPolicyId: !Ref ForwardAll
+          ResponseHeadersPolicyId: !Ref Security

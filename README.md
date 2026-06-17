@@ -72,14 +72,14 @@ Each Terraform CloudFront resource maps to the CloudFormation type localfront su
 | `aws_cloudfront_distribution` | `AWS::CloudFront::Distribution` | ✅ implemented |
 | `aws_cloudfront_function` | `AWS::CloudFront::Function` | ✅ implemented |
 | `aws_cloudfront_key_value_store` | `AWS::CloudFront::KeyValueStore` | ✅ implemented |
-| `aws_cloudfront_cache_policy` | `AWS::CloudFront::CachePolicy` | planned |
-| `aws_cloudfront_origin_request_policy` | `AWS::CloudFront::OriginRequestPolicy` | planned |
-| `aws_cloudfront_response_headers_policy` | `AWS::CloudFront::ResponseHeadersPolicy` | planned |
-| `aws_cloudfront_public_key` | `AWS::CloudFront::PublicKey` | planned |
-| `aws_cloudfront_key_group` | `AWS::CloudFront::KeyGroup` | planned |
-| `aws_cloudfront_origin_access_control` | `AWS::CloudFront::OriginAccessControl` | planned |
+| `aws_cloudfront_cache_policy` | `AWS::CloudFront::CachePolicy` | ✅ implemented |
+| `aws_cloudfront_origin_request_policy` | `AWS::CloudFront::OriginRequestPolicy` | ✅ implemented |
+| `aws_cloudfront_response_headers_policy` | `AWS::CloudFront::ResponseHeadersPolicy` | ✅ implemented |
+| `aws_cloudfront_public_key` | `AWS::CloudFront::PublicKey` | ✅ implemented |
+| `aws_cloudfront_key_group` | `AWS::CloudFront::KeyGroup` | ✅ implemented |
+| `aws_cloudfront_origin_access_control` | `AWS::CloudFront::OriginAccessControl` | ✅ implemented |
 
-The three implemented types cover the `examples/`, which are golden-tested against the templates [localfront](https://github.com/mackee/localfront) ships. References *to* the planned types (a distribution's `cache_policy_id`, `trusted_key_groups`, `origin_access_control_id`, …) already resolve to `Ref`; only emitting the policy resources themselves is pending. A `planned` CloudFront type in the plan is skipped with a warning rather than translated; any non-CloudFront resource (`aws_s3_bucket`, `aws_iam_*`, …) is ignored silently.
+All nine types cover the `examples/`, which are golden-tested against the templates [localfront](https://github.com/mackee/localfront) ships. A distribution's references *to* the policy and key resources (`cache_policy_id`, `trusted_key_groups`, `origin_access_control_id`, …) resolve to `Ref` / `Fn::GetAtt` against the converted logical ID. A CloudFront type the converter does not handle (`aws_cloudfront_monitoring_subscription`, `aws_cloudfront_origin_access_identity`, …) is skipped with a warning rather than translated; any non-CloudFront resource (`aws_s3_bucket`, `aws_iam_*`, …) is ignored silently.
 
 ### Schema translation
 
@@ -103,7 +103,7 @@ Inside a plan, an attribute that points at another resource — e.g. `cache_poli
 
 Managed policy IDs (`Managed-CachingOptimized`, …) and other literal values are passed through unchanged — localfront resolves those itself.
 
-Logical IDs are derived deterministically from the Terraform resource address (`aws_cloudfront_distribution.assets` → `AwsCloudfrontDistributionAssets`), so the output is stable across runs.
+Logical IDs are derived deterministically from the Terraform resource's local name, PascalCased on underscores (`aws_cloudfront_distribution.assets` → `Assets`, `aws_cloudfront_cache_policy.long_cache` → `LongCache`), so the output is stable across runs. Give resources distinct local names: two resources that share one (e.g. a cache policy and a distribution both named `assets`) collide on the same logical ID, and the converter warns and keeps the last one.
 
 ## Not supported / out of scope
 
@@ -115,7 +115,7 @@ Logical IDs are derived deterministically from the Terraform resource address (`
 ## Example
 
 ```hcl
-resource "aws_cloudfront_cache_policy" "assets" {
+resource "aws_cloudfront_cache_policy" "assets_cache" {
   name        = "assets"
   default_ttl = 86400
   # …
@@ -134,7 +134,7 @@ resource "aws_cloudfront_distribution" "assets" {
   default_cache_behavior {
     target_origin_id       = "s3"
     viewer_protocol_policy = "allow-all"
-    cache_policy_id        = aws_cloudfront_cache_policy.assets.id
+    cache_policy_id        = aws_cloudfront_cache_policy.assets_cache.id
   }
 
   custom_error_response {
@@ -152,14 +152,14 @@ $ terraform show -json plan.tfplan | tfjson2cfn-cloudfront
 
 ```yaml
 Resources:
-  AwsCloudfrontCachePolicyAssets:
+  AssetsCache:
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
         Name: assets
         DefaultTTL: 86400
         # …
-  AwsCloudfrontDistributionAssets:
+  Assets:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
@@ -173,7 +173,7 @@ Resources:
         DefaultCacheBehavior:
           TargetOriginId: s3
           ViewerProtocolPolicy: allow-all
-          CachePolicyId: !Ref AwsCloudfrontCachePolicyAssets
+          CachePolicyId: !Ref AssetsCache
         CustomErrorResponses:
           - ErrorCode: 404
             ResponseCode: 200
@@ -225,7 +225,6 @@ $ go test ./...                          # verify, then commit the fixtures
 
 ## Roadmap
 
-- Emit the remaining CloudFront resource types (cache / origin-request / response-headers policies, key groups, public keys, origin access control).
 - Accept current-state JSON (`terraform show -json` with no plan), inlining already-known IDs.
 - `--validate`: warn about resources or properties localfront will skip or ignore at serve time.
 - Optionally invoke `terraform show -json` on a `.tfplan` directly, removing the manual step.

@@ -115,6 +115,12 @@ var unorderedKeys = map[string]bool{
 	"TrustedSigners":             true,
 	"OriginSSLProtocols":         true,
 	"OriginCustomHeaders":        true,
+	"Locations":                  true,
+	// Policy allowlists are Terraform sets, reordered relative to source.
+	"Cookies":      true,
+	"Headers":      true,
+	"QueryStrings": true,
+	"Items":        true,
 }
 
 func canonOf(t *testing.T, data []byte) any {

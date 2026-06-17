@@ -1,0 +1,69 @@
+# Private S3 content served through Origin Access Control, with signed-URL
+# access enforced by a key group.
+#
+#   localfront serve --template examples/signed-private-content/template.yaml \
+#     --s3-endpoint http://localhost:9000 \
+#     --s3-access-key rustfsadmin --s3-secret-key rustfsadmin
+#
+# The key group references the public key, the S3 origin references the origin
+# access control, and the cache behavior references the key group — all
+# known-after-apply, so the converter restores them as !Ref.
+Resources:
+  SigningKey:
+    Type: AWS::CloudFront::PublicKey
+    Properties:
+      PublicKeyConfig:
+        Name: url-signing-key
+        Comment: Public key for verifying signed URLs
+        CallerReference: url-signing-key
+        EncodedKey: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiMix7pHwG2/hDGTJ7emq
+          JI+KlhxWkzOx8qd3bbw4ukndl4JulOcUzSQTfPi0mMBhFBfUCrWbOLPRzyygH/Cv
+          sd/pYz6s9V2R5S5MPPkqk/itqIzj1ad5tcYQpp96XbOvf0CQUm1qBptJnumTPHoV
+          Md7XljTcCTYqHOvGxWp99gjbY32rBjdatcNOv1qeKkHpO5Y4THLMOrM74u+CAXiW
+          xF5g98KY3VaHyODXEybNij/EeGpsCKYTx/pEH+6xY8eO8/v6ebHsMRN415URJJ6N
+          1iA8c1tWzFVQ5pzZDEdpI8Mmwr6wzqi3zhjVmu6CoOCnQpz2tAR/dBBcSA7ytWTC
+          bwIDAQAB
+          -----END PUBLIC KEY-----
+
+  Signers:
+    Type: AWS::CloudFront::KeyGroup
+    Properties:
+      KeyGroupConfig:
+        Name: url-signers
+        Comment: Key group authorized to sign URLs
+        Items:
+          - !Ref SigningKey
+
+  Assets:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: private-assets-oac
+        Description: SigV4 signing for the private S3 origin
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Private:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Aliases: [private.example.test]
+        Origins:
+          - Id: s3
+            DomainName: private-assets.s3.us-east-1.amazonaws.com
+            OriginAccessControlId: !Ref Assets
+            S3OriginConfig: {}
+        DefaultCacheBehavior:
+          TargetOriginId: s3
+          ViewerProtocolPolicy: https-only
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          TrustedKeyGroups:
+            - !Ref Signers
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: whitelist
+            Locations: [US, JP]

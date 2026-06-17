@@ -16,3 +16,7 @@ crash.*.log
 
 # Editor / OS
 .DS_Store
+
+# Example public keys are committed fixtures (referenced by file() in main.tf);
+# override a global *.pem ignore so they stay tracked.
+!examples/**/*.pem
