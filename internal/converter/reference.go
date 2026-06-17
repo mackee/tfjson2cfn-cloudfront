@@ -61,7 +61,7 @@ func refFromExpr(expr map[string]any, field string) *reference {
 // same value. CloudFront resources expose their id via Ref and their ARN via a
 // GetAtt, with a couple of resource-specific attribute names.
 func (r *reference) resolve() *yaml.Node {
-	id := logicalID(r.name)
+	id := logicalID(r.resourceType, r.name)
 	switch r.resourceType {
 	case "aws_cloudfront_function":
 		switch r.attr {
@@ -93,10 +93,19 @@ func (r *reference) resolve() *yaml.Node {
 }
 
 // logicalID derives a CloudFormation logical ID from a Terraform resource's
-// local name by PascalCasing on underscores: "spa_distribution" ->
+// full address (type + local name), PascalCased on underscores:
+// aws_cloudfront_distribution.spa_distribution -> "AwsCloudfrontDistributionSpaDistribution".
+// Including the resource type keeps logical IDs unique across resource kinds
+// that share the same local name (e.g. an origin access control, a key group
+// and a public key all named "tools" would otherwise collide).
+func logicalID(resourceType, name string) string {
+	return pascalCase(resourceType + "_" + name)
+}
+
+// pascalCase PascalCases an identifier on underscores: "spa_distribution" ->
 // "SpaDistribution", "feature_flags" -> "FeatureFlags".
-func logicalID(name string) string {
-	parts := strings.Split(name, "_")
+func pascalCase(s string) string {
+	parts := strings.Split(s, "_")
 	var b strings.Builder
 	for _, p := range parts {
 		if p == "" {

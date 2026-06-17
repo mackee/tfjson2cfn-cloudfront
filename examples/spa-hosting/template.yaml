@@ -8,7 +8,7 @@
 #   aws --endpoint-url http://localhost:9000 s3 mb s3://spa-assets
 #   aws --endpoint-url http://localhost:9000 s3 sync examples/spa-hosting/dist s3://spa-assets
 Resources:
-  SpaDistribution:
+  AwsCloudfrontDistributionSpaDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
@@ -24,10 +24,14 @@ Resources:
           TargetOriginId: s3
           ViewerProtocolPolicy: allow-all
           Compress: true
-          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
         CustomErrorResponses:
-          # Classic SPA fallback — deep links resolve to the app shell.
-          # (Custom error responses are applied starting in milestone M4.)
           - ErrorCode: 403
             ResponseCode: 200
             ResponsePagePath: /index.html

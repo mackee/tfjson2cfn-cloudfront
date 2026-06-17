@@ -69,7 +69,7 @@ func Convert(data []byte, opts Options) (*Result, error) {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("skipping %s: %s is not supported yet", r.Address, r.Type))
 			continue
 		}
-		id := logicalID(r.Name)
+		id := logicalID(r.Type, r.Name)
 		if prev, dup := seen[id]; dup {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("logical ID %q for %s collides with %s; the earlier resource is overwritten", id, r.Address, prev))
 		}

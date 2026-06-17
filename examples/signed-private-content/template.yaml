@@ -9,7 +9,54 @@
 # access control, and the cache behavior references the key group — all
 # known-after-apply, so the converter restores them as !Ref.
 Resources:
-  SigningKey:
+  AwsCloudfrontDistributionPrivate:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Aliases:
+          - private.example.test
+        Origins:
+          - Id: s3
+            DomainName: private-assets.s3.us-east-1.amazonaws.com
+            OriginAccessControlId: !Ref AwsCloudfrontOriginAccessControlAssets
+            S3OriginConfig: {}
+        DefaultCacheBehavior:
+          TargetOriginId: s3
+          ViewerProtocolPolicy: https-only
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          TrustedKeyGroups:
+            - !Ref AwsCloudfrontKeyGroupSigners
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: whitelist
+            Locations:
+              - JP
+              - US
+  AwsCloudfrontKeyGroupSigners:
+    Type: AWS::CloudFront::KeyGroup
+    Properties:
+      KeyGroupConfig:
+        Name: url-signers
+        Comment: Key group authorized to sign URLs
+        Items:
+          - !Ref AwsCloudfrontPublicKeySigningKey
+  AwsCloudfrontOriginAccessControlAssets:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: private-assets-oac
+        Description: SigV4 signing for the private S3 origin
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+  AwsCloudfrontPublicKeySigningKey:
     Type: AWS::CloudFront::PublicKey
     Properties:
       PublicKeyConfig:
@@ -26,44 +73,3 @@ Resources:
           1iA8c1tWzFVQ5pzZDEdpI8Mmwr6wzqi3zhjVmu6CoOCnQpz2tAR/dBBcSA7ytWTC
           bwIDAQAB
           -----END PUBLIC KEY-----
-
-  Signers:
-    Type: AWS::CloudFront::KeyGroup
-    Properties:
-      KeyGroupConfig:
-        Name: url-signers
-        Comment: Key group authorized to sign URLs
-        Items:
-          - !Ref SigningKey
-
-  Assets:
-    Type: AWS::CloudFront::OriginAccessControl
-    Properties:
-      OriginAccessControlConfig:
-        Name: private-assets-oac
-        Description: SigV4 signing for the private S3 origin
-        OriginAccessControlOriginType: s3
-        SigningBehavior: always
-        SigningProtocol: sigv4
-
-  Private:
-    Type: AWS::CloudFront::Distribution
-    Properties:
-      DistributionConfig:
-        Enabled: true
-        Aliases: [private.example.test]
-        Origins:
-          - Id: s3
-            DomainName: private-assets.s3.us-east-1.amazonaws.com
-            OriginAccessControlId: !Ref Assets
-            S3OriginConfig: {}
-        DefaultCacheBehavior:
-          TargetOriginId: s3
-          ViewerProtocolPolicy: https-only
-          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
-          TrustedKeyGroups:
-            - !Ref Signers
-        Restrictions:
-          GeoRestriction:
-            RestrictionType: whitelist
-            Locations: [US, JP]

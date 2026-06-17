@@ -1,16 +1,10 @@
 package converter
 
 import (
-	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
-
-// defaultMethods is CloudFront's default for AllowedMethods/CachedMethods.
-// Behaviors that leave them at this default omit the property to match the
-// minimal templates a human would write.
-var defaultMethods = []string{"GET", "HEAD"}
 
 // stringSeq builds a sequence node from strings.
 func stringSeq(ss []string) *yaml.Node {
@@ -19,24 +13,6 @@ func stringSeq(ss []string) *yaml.Node {
 		nodes = append(nodes, scalar(s))
 	}
 	return sequence(nodes...)
-}
-
-// equalStringSet reports whether a and b contain the same elements, ignoring
-// order (Terraform serializes set-typed lists in a different order than source).
-func equalStringSet(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	ac := append([]string(nil), a...)
-	bc := append([]string(nil), b...)
-	sort.Strings(ac)
-	sort.Strings(bc)
-	for i := range ac {
-		if ac[i] != bc[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // configConst returns the constant_value configured for field, or nil.

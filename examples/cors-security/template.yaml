@@ -7,7 +7,7 @@
 # back with the policy's Access-Control-* headers; every response also gets
 # HSTS, X-Content-Type-Options, X-Frame-Options, and a referrer policy.
 Resources:
-  ApiDistribution:
+  AwsCloudfrontDistributionApiDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
@@ -19,12 +19,26 @@ Resources:
             DomainName: 127.0.0.1
             CustomOriginConfig:
               HTTPPort: 3000
+              HTTPSPort: 443
               OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
+              OriginReadTimeout: 30
+              OriginKeepaliveTimeout: 5
         DefaultCacheBehavior:
           TargetOriginId: api
           ViewerProtocolPolicy: allow-all
-          AllowedMethods: [ GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE ]
-          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad   # CachingDisabled
-          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # CORS-S3Origin (forwards Origin etc.)
-          # Managed-CORS-with-preflight-and-SecurityHeadersPolicy
+          AllowedMethods:
+            - DELETE
+            - GET
+            - HEAD
+            - OPTIONS
+            - PATCH
+            - POST
+            - PUT
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf
           ResponseHeadersPolicyId: eaab4381-ed33-4a86-88ca-d9558dc6cd63

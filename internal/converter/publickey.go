@@ -20,7 +20,7 @@ func convertPublicKey(r plannedResource, _ map[string]any) (string, *yaml.Node) 
 	// deterministic across runs.
 	cr := str(v, "name")
 	if cr == "" {
-		cr = logicalID(r.Name)
+		cr = logicalID(r.Type, r.Name)
 	}
 	cfg.set("CallerReference", scalar(cr))
 	cfg.set("EncodedKey", literalScalar(str(v, "encoded_key")))

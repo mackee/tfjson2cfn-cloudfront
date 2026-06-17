@@ -87,8 +87,9 @@ Terraform and CloudFormation describe the same CloudFront concepts with differen
 
 - Repeated blocks become arrays: `origin { … }` → `Origins: [ … ]`, `ordered_cache_behavior { … }` → `CacheBehaviors: [ … ]`, `custom_error_response { … }` → `CustomErrorResponses: [ … ]`.
 - The flat `aws_cloudfront_distribution` body is nested under `DistributionConfig` (and likewise `CachePolicyConfig`, `OriginRequestPolicyConfig`, … for the policy resources).
-- snake_case → PascalCase, with CloudFront's naming quirks (`is_ipv6_enabled` → `IPV6Enabled`, `viewer_certificate` → `ViewerCertificate`, …).
+- snake_case → PascalCase, with CloudFront's naming quirks (`is_ipv6_enabled` → `IPV6Enabled`, `origin_ssl_protocols` → `OriginSSLProtocols`, `viewer_certificate` → `ViewerCertificate`, …).
 - Legacy `forwarded_values` is carried over as-is (localfront accepts it).
+- Every value the plan resolves is emitted, including schema defaults Terraform fills in (a custom origin's `https_port = 443`, `origin_ssl_protocols`, `origin_read_timeout`; a behavior's `cached_methods`). The output is faithful to the resolved plan rather than to the minimal HCL you wrote, which keeps a committed template's diff meaningful. Truly absent values are omitted (never emitted as `null`).
 
 ### Reference resolution
 
@@ -96,14 +97,14 @@ Inside a plan, an attribute that points at another resource — e.g. `cache_poli
 
 | Terraform reference | Emitted |
 | --- | --- |
-| `cache_policy_id = aws_cloudfront_cache_policy.x.id` | `CachePolicyId: !Ref X` |
-| `function_arn = aws_cloudfront_function.x.arn` | `FunctionARN: !GetAtt X.FunctionARN` |
-| `trusted_key_groups = [aws_cloudfront_key_group.x.id]` | `TrustedKeyGroups: [ !Ref X ]` |
-| `key_value_store_arn = aws_cloudfront_key_value_store.x.arn` | `KeyValueStoreARN: !GetAtt X.Arn` |
+| `cache_policy_id = aws_cloudfront_cache_policy.assets.id` | `CachePolicyId: !Ref AwsCloudfrontCachePolicyAssets` |
+| `function_arn = aws_cloudfront_function.router.arn` | `FunctionARN: !GetAtt AwsCloudfrontFunctionRouter.FunctionARN` |
+| `trusted_key_groups = [aws_cloudfront_key_group.signers.id]` | `TrustedKeyGroups: [ !Ref AwsCloudfrontKeyGroupSigners ]` |
+| `key_value_store_arn = aws_cloudfront_key_value_store.flags.arn` | `KeyValueStoreARN: !GetAtt AwsCloudfrontKeyValueStoreFlags.Arn` |
 
 Managed policy IDs (`Managed-CachingOptimized`, …) and other literal values are passed through unchanged — localfront resolves those itself.
 
-Logical IDs are derived deterministically from the Terraform resource's local name, PascalCased on underscores (`aws_cloudfront_distribution.assets` → `Assets`, `aws_cloudfront_cache_policy.long_cache` → `LongCache`), so the output is stable across runs. Give resources distinct local names: two resources that share one (e.g. a cache policy and a distribution both named `assets`) collide on the same logical ID, and the converter warns and keeps the last one.
+Logical IDs are derived deterministically from the Terraform resource's full address — the resource type and local name PascalCased on underscores (`aws_cloudfront_distribution.assets` → `AwsCloudfrontDistributionAssets`, `aws_cloudfront_cache_policy.long_cache` → `AwsCloudfrontCachePolicyLongCache`), so the output is stable across runs. Because the type is part of the ID, resources of different kinds that share a local name (e.g. an origin access control, a key group and a public key all named `tools`) each get a distinct logical ID instead of colliding.
 
 ## Not supported / out of scope
 
@@ -134,6 +135,8 @@ resource "aws_cloudfront_distribution" "assets" {
   default_cache_behavior {
     target_origin_id       = "s3"
     viewer_protocol_policy = "allow-all"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
     cache_policy_id        = aws_cloudfront_cache_policy.assets_cache.id
   }
 
@@ -152,14 +155,14 @@ $ terraform show -json plan.tfplan | tfjson2cfn-cloudfront
 
 ```yaml
 Resources:
-  AssetsCache:
+  AwsCloudfrontCachePolicyAssetsCache:
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
         Name: assets
         DefaultTTL: 86400
         # …
-  Assets:
+  AwsCloudfrontDistributionAssets:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
@@ -173,7 +176,9 @@ Resources:
         DefaultCacheBehavior:
           TargetOriginId: s3
           ViewerProtocolPolicy: allow-all
-          CachePolicyId: !Ref AssetsCache
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: !Ref AwsCloudfrontCachePolicyAssetsCache
         CustomErrorResponses:
           - ErrorCode: 404
             ResponseCode: 200

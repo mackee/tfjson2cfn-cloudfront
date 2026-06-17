@@ -25,7 +25,7 @@ func keyGroupItems(v, cfg map[string]any) *yaml.Node {
 		if refs, ok := node["references"].([]any); ok {
 			var nodes []*yaml.Node
 			for _, ref := range distinctCloudFrontRefs(refs) {
-				nodes = append(nodes, refNode(logicalID(ref.name)))
+				nodes = append(nodes, refNode(logicalID(ref.resourceType, ref.name)))
 			}
 			if len(nodes) > 0 {
 				return sequence(nodes...)

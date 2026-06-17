@@ -8,7 +8,7 @@
 # The distribution references each policy by id; Terraform reports those ids as
 # known-after-apply, so the converter restores them as !Ref.
 Resources:
-  LongCache:
+  AwsCloudfrontCachePolicyLongCache:
     Type: AWS::CloudFront::CachePolicy
     Properties:
       CachePolicyConfig:
@@ -24,12 +24,37 @@ Resources:
             CookieBehavior: none
           HeadersConfig:
             HeaderBehavior: whitelist
-            Headers: [Origin]
+            Headers:
+              - Origin
           QueryStringsConfig:
             QueryStringBehavior: whitelist
-            QueryStrings: [version, lang]
-
-  ForwardAll:
+            QueryStrings:
+              - lang
+              - version
+  AwsCloudfrontDistributionSite:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Aliases:
+          - app.example.test
+        Origins:
+          - Id: assets
+            DomainName: app-assets.s3.us-east-1.amazonaws.com
+            S3OriginConfig: {}
+        DefaultCacheBehavior:
+          TargetOriginId: assets
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: !Ref AwsCloudfrontCachePolicyLongCache
+          OriginRequestPolicyId: !Ref AwsCloudfrontOriginRequestPolicyForwardAll
+          ResponseHeadersPolicyId: !Ref AwsCloudfrontResponseHeadersPolicySecurity
+  AwsCloudfrontOriginRequestPolicyForwardAll:
     Type: AWS::CloudFront::OriginRequestPolicy
     Properties:
       OriginRequestPolicyConfig:
@@ -39,11 +64,12 @@ Resources:
           CookieBehavior: all
         HeadersConfig:
           HeaderBehavior: whitelist
-          Headers: [CloudFront-Viewer-Country, User-Agent]
+          Headers:
+            - CloudFront-Viewer-Country
+            - User-Agent
         QueryStringsConfig:
           QueryStringBehavior: all
-
-  Security:
+  AwsCloudfrontResponseHeadersPolicySecurity:
     Type: AWS::CloudFront::ResponseHeadersPolicy
     Properties:
       ResponseHeadersPolicyConfig:
@@ -52,11 +78,16 @@ Resources:
         CorsConfig:
           AccessControlAllowCredentials: false
           AccessControlAllowHeaders:
-            Items: ["*"]
+            Items:
+              - '*'
           AccessControlAllowMethods:
-            Items: [GET, HEAD, OPTIONS]
+            Items:
+              - GET
+              - HEAD
+              - OPTIONS
           AccessControlAllowOrigins:
-            Items: [https://app.example.test]
+            Items:
+              - https://app.example.test
           AccessControlMaxAgeSec: 600
           OriginOverride: true
         CustomHeadersConfig:
@@ -78,20 +109,3 @@ Resources:
         ServerTimingHeadersConfig:
           Enabled: true
           SamplingRate: 10
-
-  Site:
-    Type: AWS::CloudFront::Distribution
-    Properties:
-      DistributionConfig:
-        Enabled: true
-        Aliases: [app.example.test]
-        Origins:
-          - Id: assets
-            DomainName: app-assets.s3.us-east-1.amazonaws.com
-            S3OriginConfig: {}
-        DefaultCacheBehavior:
-          TargetOriginId: assets
-          ViewerProtocolPolicy: redirect-to-https
-          CachePolicyId: !Ref LongCache
-          OriginRequestPolicyId: !Ref ForwardAll
-          ResponseHeadersPolicyId: !Ref Security

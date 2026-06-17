@@ -7,12 +7,39 @@
 # (No object store is needed — this example proxies to a local HTTP origin on
 # 127.0.0.1:3000. Point it at any server you like.)
 Resources:
-  FeatureFlags:
-    Type: AWS::CloudFront::KeyValueStore
+  AwsCloudfrontDistributionDistribution:
+    Type: AWS::CloudFront::Distribution
     Properties:
-      Name: feature-flags
-
-  Router:
+      DistributionConfig:
+        Enabled: true
+        Aliases:
+          - app.example.test
+        Origins:
+          - Id: app
+            DomainName: 127.0.0.1
+            CustomOriginConfig:
+              HTTPPort: 3000
+              HTTPSPort: 443
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
+              OriginReadTimeout: 30
+              OriginKeepaliveTimeout: 5
+        DefaultCacheBehavior:
+          TargetOriginId: app
+          ViewerProtocolPolicy: allow-all
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt AwsCloudfrontFunctionRouter.FunctionARN
+  AwsCloudfrontFunctionRouter:
     Type: AWS::CloudFront::Function
     Properties:
       Name: router
@@ -20,7 +47,7 @@ Resources:
         Runtime: cloudfront-js-2.0
         Comment: URL normalization, redirect, and a feature flag
         KeyValueStoreAssociations:
-          - KeyValueStoreARN: !GetAtt FeatureFlags.Arn
+          - KeyValueStoreARN: !GetAtt AwsCloudfrontKeyValueStoreFeatureFlags.Arn
       FunctionCode: |
         import cf from 'cloudfront';
         var kvs = cf.kvs();
@@ -44,25 +71,7 @@ Resources:
           req.headers['x-variant'] = { value: variant };
           return req;
         }
-
-  Distribution:
-    Type: AWS::CloudFront::Distribution
+  AwsCloudfrontKeyValueStoreFeatureFlags:
+    Type: AWS::CloudFront::KeyValueStore
     Properties:
-      DistributionConfig:
-        Enabled: true
-        Aliases:
-          - app.example.test
-        Origins:
-          - Id: app
-            DomainName: 127.0.0.1
-            CustomOriginConfig:
-              HTTPPort: 3000
-              OriginProtocolPolicy: http-only
-        DefaultCacheBehavior:
-          TargetOriginId: app
-          ViewerProtocolPolicy: allow-all
-          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad   # CachingDisabled
-          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3  # AllViewer
-          FunctionAssociations:
-            - EventType: viewer-request
-              FunctionARN: !GetAtt Router.FunctionARN
+      Name: feature-flags

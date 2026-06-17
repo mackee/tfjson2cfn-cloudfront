@@ -1,11 +1,13 @@
 package converter
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -59,6 +61,105 @@ func TestJSONOutputMatchesYAML(t *testing.T) {
 	}
 	if !reflect.DeepEqual(canonOf(t, jsonRes.Output), canonOf(t, yamlRes.Output)) {
 		t.Errorf("json output is not equivalent to yaml output\njson:\n%s", jsonRes.Output)
+	}
+}
+
+// TestLogicalIDsDisambiguateByType checks that resources of different kinds that
+// share one Terraform local name get distinct logical IDs (derived from the
+// resource type as well as the name) rather than colliding and overwriting one
+// another, and that references to them resolve to the right per-type logical ID.
+func TestLogicalIDsDisambiguateByType(t *testing.T) {
+	const plan = `{
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_origin_access_control.tools",
+          "mode": "managed",
+          "type": "aws_cloudfront_origin_access_control",
+          "name": "tools",
+          "values": {
+            "name": "tools-oac",
+            "origin_access_control_origin_type": "s3",
+            "signing_behavior": "always",
+            "signing_protocol": "sigv4"
+          }
+        },
+        {
+          "address": "aws_cloudfront_public_key.tools",
+          "mode": "managed",
+          "type": "aws_cloudfront_public_key",
+          "name": "tools",
+          "values": {"name": "tools-pubkey", "encoded_key": "KEY"}
+        },
+        {
+          "address": "aws_cloudfront_key_group.tools",
+          "mode": "managed",
+          "type": "aws_cloudfront_key_group",
+          "name": "tools",
+          "values": {"name": "tools-kg", "items": null}
+        }
+      ]
+    }
+  },
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_key_group.tools",
+          "type": "aws_cloudfront_key_group",
+          "name": "tools",
+          "expressions": {
+            "items": {"references": ["aws_cloudfront_public_key.tools.id", "aws_cloudfront_public_key.tools"]}
+          }
+        }
+      ]
+    }
+  }
+}`
+
+	res, err := Convert([]byte(plan), Options{Format: "json"})
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+	for _, w := range res.Warnings {
+		if strings.Contains(w, "collides") {
+			t.Errorf("unexpected collision warning: %s", w)
+		}
+	}
+
+	var doc struct {
+		Resources map[string]struct {
+			Type string `json:"Type"`
+		} `json:"Resources"`
+	}
+	if err := json.Unmarshal(res.Output, &doc); err != nil {
+		t.Fatalf("parse output: %v\n%s", err, res.Output)
+	}
+	want := map[string]string{
+		"AwsCloudfrontOriginAccessControlTools": "AWS::CloudFront::OriginAccessControl",
+		"AwsCloudfrontPublicKeyTools":           "AWS::CloudFront::PublicKey",
+		"AwsCloudfrontKeyGroupTools":            "AWS::CloudFront::KeyGroup",
+	}
+	if len(doc.Resources) != len(want) {
+		t.Fatalf("got %d resources, want %d: %s", len(doc.Resources), len(want), res.Output)
+	}
+	for id, typ := range want {
+		got, ok := doc.Resources[id]
+		if !ok {
+			t.Errorf("missing logical ID %q in output:\n%s", id, res.Output)
+			continue
+		}
+		if got.Type != typ {
+			t.Errorf("logical ID %q has type %q, want %q", id, got.Type, typ)
+		}
+	}
+
+	// The key group's Items must reference the public key by its per-type
+	// logical ID, not a bare "Tools".
+	if !strings.Contains(string(res.Output), `"Ref": "AwsCloudfrontPublicKeyTools"`) {
+		t.Errorf("key group Items did not resolve to the public key's logical ID:\n%s", res.Output)
 	}
 }
 

@@ -111,20 +111,23 @@ func originNode(o, oc map[string]any) *yaml.Node {
 		m.set("S3OriginConfig", s3m.emptyNode()) // empty {} is meaningful here
 	}
 	if co := firstBlock(o, "custom_origin_config"); co != nil {
+		// Emit every value the plan carries, rather than dropping ones that
+		// happen to equal a CloudFront/Terraform default: the converter is a
+		// fidelity translator, so the output should reflect the resolved plan.
 		cm := newMapping()
 		cm.set("HTTPPort", scalar(num(co, "http_port")))
-		if hp := num(co, "https_port"); hp != 0 && hp != 443 {
-			cm.set("HTTPSPort", scalar(hp))
+		if hp := numPtr(co, "https_port"); hp != nil {
+			cm.set("HTTPSPort", scalar(*hp))
 		}
 		cm.set("OriginProtocolPolicy", scalar(str(co, "origin_protocol_policy")))
-		if ssl := strList(co, "origin_ssl_protocols"); len(ssl) > 0 && !equalStringSet(ssl, []string{"TLSv1.2"}) {
+		if ssl := strList(co, "origin_ssl_protocols"); len(ssl) > 0 {
 			cm.set("OriginSSLProtocols", stringSeq(ssl))
 		}
-		if rt := num(co, "origin_read_timeout"); rt != 0 && rt != 30 {
-			cm.set("OriginReadTimeout", scalar(rt))
+		if rt := numPtr(co, "origin_read_timeout"); rt != nil {
+			cm.set("OriginReadTimeout", scalar(*rt))
 		}
-		if kt := num(co, "origin_keepalive_timeout"); kt != 0 && kt != 5 {
-			cm.set("OriginKeepaliveTimeout", scalar(kt))
+		if kt := numPtr(co, "origin_keepalive_timeout"); kt != nil {
+			cm.set("OriginKeepaliveTimeout", scalar(*kt))
 		}
 		m.set("CustomOriginConfig", cm.emptyNode())
 	}
@@ -141,10 +144,13 @@ func cacheBehaviorNode(b, bc map[string]any, ordered bool) *yaml.Node {
 	if boolVal(b, "compress") {
 		m.set("Compress", scalar(true))
 	}
-	if am := strList(b, "allowed_methods"); len(am) > 0 && !equalStringSet(am, defaultMethods) {
+	// Emit the method lists whenever the plan sets them (both are required on a
+	// cache behavior), including when they equal CloudFront's GET/HEAD default,
+	// so the output stays faithful to the resolved plan.
+	if am := strList(b, "allowed_methods"); len(am) > 0 {
 		m.set("AllowedMethods", stringSeq(am))
 	}
-	if cm := strList(b, "cached_methods"); len(cm) > 0 && !equalStringSet(cm, defaultMethods) {
+	if cm := strList(b, "cached_methods"); len(cm) > 0 {
 		m.set("CachedMethods", stringSeq(cm))
 	}
 	m.set("CachePolicyId", policyField(b, bc, "cache_policy_id"))
@@ -226,7 +232,7 @@ func trustedKeyGroups(b, bc map[string]any) *yaml.Node {
 		if refs, ok := node["references"].([]any); ok {
 			var nodes []*yaml.Node
 			for _, ref := range distinctCloudFrontRefs(refs) {
-				nodes = append(nodes, refNode(logicalID(ref.name)))
+				nodes = append(nodes, refNode(logicalID(ref.resourceType, ref.name)))
 			}
 			return sequence(nodes...)
 		}
