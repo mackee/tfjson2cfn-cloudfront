@@ -69,7 +69,7 @@ func regenerateFixtures() error {
 
 func regeneratePlan(dir string, env []string) error {
 	const planFile = ".regen.tfplan"
-	defer os.Remove(filepath.Join(dir, planFile))
+	defer func() { _ = os.Remove(filepath.Join(dir, planFile)) }()
 
 	run := func(args ...string) error {
 		cmd := exec.Command("terraform", args...)

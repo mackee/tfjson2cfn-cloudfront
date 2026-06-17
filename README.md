@@ -190,7 +190,13 @@ This is the *"Terraform plan → CloudFormation companion converter (separate re
 ```console
 $ go build ./...
 $ go test ./...            # golden tests: examples/<name>/plan.json -> template.yaml
+$ golangci-lint run ./...  # installed via aqua (aqua i)
 ```
+
+CI (`.github/workflows/ci.yml`) runs `go vet` / gofmt / `go build` / `go test`
+and golangci-lint on every push and pull request. GitHub Actions are pinned to
+commit SHAs with [pinact](https://github.com/suzuki-shunsuke/pinact) (`pinact run`);
+both pinact and golangci-lint come from `aqua.yaml`.
 
 `TestExamples` discovers every `examples/<name>/` with a `plan.json` and a
 `template.yaml`, converts the plan, and checks the result is CloudFront-
