@@ -1,0 +1,17 @@
+# Go
+/tfjson2cfn-cloudfront
+/dist/
+*.test
+*.out
+
+# Terraform — keep main.tf and the generated plan.json fixture, ignore the rest
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Editor / OS
+.DS_Store
