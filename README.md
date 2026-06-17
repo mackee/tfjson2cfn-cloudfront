@@ -66,19 +66,19 @@ The converter reads JSON on stdin and writes the template on stdout by default, 
 
 Each Terraform CloudFront resource maps to the CloudFormation type localfront supports:
 
-| Terraform | CloudFormation |
-| --- | --- |
-| `aws_cloudfront_distribution` | `AWS::CloudFront::Distribution` |
-| `aws_cloudfront_function` | `AWS::CloudFront::Function` |
-| `aws_cloudfront_key_value_store` | `AWS::CloudFront::KeyValueStore` |
-| `aws_cloudfront_cache_policy` | `AWS::CloudFront::CachePolicy` |
-| `aws_cloudfront_origin_request_policy` | `AWS::CloudFront::OriginRequestPolicy` |
-| `aws_cloudfront_response_headers_policy` | `AWS::CloudFront::ResponseHeadersPolicy` |
-| `aws_cloudfront_public_key` | `AWS::CloudFront::PublicKey` |
-| `aws_cloudfront_key_group` | `AWS::CloudFront::KeyGroup` |
-| `aws_cloudfront_origin_access_control` | `AWS::CloudFront::OriginAccessControl` |
+| Terraform | CloudFormation | Status |
+| --- | --- | --- |
+| `aws_cloudfront_distribution` | `AWS::CloudFront::Distribution` | ✅ implemented |
+| `aws_cloudfront_function` | `AWS::CloudFront::Function` | ✅ implemented |
+| `aws_cloudfront_key_value_store` | `AWS::CloudFront::KeyValueStore` | ✅ implemented |
+| `aws_cloudfront_cache_policy` | `AWS::CloudFront::CachePolicy` | planned |
+| `aws_cloudfront_origin_request_policy` | `AWS::CloudFront::OriginRequestPolicy` | planned |
+| `aws_cloudfront_response_headers_policy` | `AWS::CloudFront::ResponseHeadersPolicy` | planned |
+| `aws_cloudfront_public_key` | `AWS::CloudFront::PublicKey` | planned |
+| `aws_cloudfront_key_group` | `AWS::CloudFront::KeyGroup` | planned |
+| `aws_cloudfront_origin_access_control` | `AWS::CloudFront::OriginAccessControl` | planned |
 
-Any other resource in the plan (`aws_s3_bucket`, `aws_iam_*`, …) is skipped — these are the same resource types localfront knows how to serve.
+The three implemented types cover the `examples/`, which are golden-tested against the templates [localfront](https://github.com/mackee/localfront) ships. References *to* the planned types (a distribution's `cache_policy_id`, `trusted_key_groups`, `origin_access_control_id`, …) already resolve to `Ref`; only emitting the policy resources themselves is pending. A `planned` CloudFront type in the plan is skipped with a warning rather than translated; any non-CloudFront resource (`aws_s3_bucket`, `aws_iam_*`, …) is ignored silently.
 
 ### Schema translation
 
@@ -185,9 +185,33 @@ Feed `template.yaml` straight to `localfront serve --template template.yaml …`
 
 This is the *"Terraform plan → CloudFormation companion converter (separate repository)"* on [localfront's roadmap](https://github.com/mackee/localfront#roadmap-post-poc). localfront is the data plane — a local CloudFront emulator; this project is the on-ramp that lets Terraform-defined distributions drive it. The two are versioned independently.
 
+## Development
+
+```console
+$ go build ./...
+$ go test ./...            # golden tests: examples/<name>/plan.json -> template.yaml
+```
+
+The golden tests run entirely from the committed `plan.json` fixtures, so they
+need neither terraform nor network. They compare the converted output to each
+golden template with a CloudFront-aware canonical form: mappings are
+order-independent, set-typed lists (`Origins`, `AllowedMethods`,
+`CustomErrorResponses`, …) are compared as multisets, `CacheBehaviors` keeps its
+precedence order, and `!Ref` / `!GetAtt` are matched in both YAML short form and
+JSON long form.
+
+When you change an example's Terraform, regenerate its fixture (requires
+terraform + network for the AWS provider):
+
+```console
+$ examples/regenerate.sh
+$ go test ./...
+```
+
 ## Roadmap
 
-- Cover the full attribute surface of each `aws_cloudfront_*` resource.
+- Emit the remaining CloudFront resource types (cache / origin-request / response-headers policies, key groups, public keys, origin access control).
 - Accept current-state JSON (`terraform show -json` with no plan), inlining already-known IDs.
 - `--validate`: warn about resources or properties localfront will skip or ignore at serve time.
 - Optionally invoke `terraform show -json` on a `.tfplan` directly, removing the manual step.
+- Traverse child modules (only root-module resources are converted today).
