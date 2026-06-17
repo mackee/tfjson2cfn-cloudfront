@@ -1,1 +1,795 @@
-{"format_version":"1.2","terraform_version":"1.15.6","planned_values":{"root_module":{"resources":[{"address":"aws_cloudfront_distribution.site_distribution","mode":"managed","type":"aws_cloudfront_distribution","name":"site_distribution","provider_name":"registry.terraform.io/hashicorp/aws","schema_version":1,"values":{"aliases":["site.example.test"],"anycast_ip_list_id":null,"cache_tag_config":[],"comment":null,"connection_function_association":[],"custom_error_response":[],"default_cache_behavior":[{"allowed_methods":["GET","HEAD"],"cache_policy_id":"658327ea-f89d-4fab-a63d-7e88639e58f6","cached_methods":["GET","HEAD"],"compress":true,"field_level_encryption_id":null,"forwarded_values":[],"function_association":[],"lambda_function_association":[],"min_ttl":0,"origin_request_policy_id":null,"realtime_log_config_arn":null,"response_headers_policy_id":null,"smooth_streaming":null,"target_origin_id":"static","viewer_protocol_policy":"allow-all"}],"default_root_object":"index.html","enabled":true,"http_version":"http2","is_ipv6_enabled":false,"logging_config":[],"ordered_cache_behavior":[{"allowed_methods":["DELETE","GET","HEAD","OPTIONS","PATCH","POST","PUT"],"cache_policy_id":"4135ea2d-6df8-44a3-9df3-4b5a84be39ad","cached_methods":["GET","HEAD"],"compress":false,"field_level_encryption_id":null,"forwarded_values":[],"function_association":[],"lambda_function_association":[],"min_ttl":0,"origin_request_policy_id":"216adef6-5c7f-47e4-b989-5492eafa07d3","path_pattern":"/api/*","realtime_log_config_arn":null,"response_headers_policy_id":null,"smooth_streaming":null,"target_origin_id":"api","trusted_key_groups":null,"trusted_signers":null,"viewer_protocol_policy":"allow-all"}],"origin":[{"connection_attempts":3,"connection_timeout":10,"custom_header":[],"custom_origin_config":[{"http_port":3000,"https_port":443,"ip_address_type":"","origin_keepalive_timeout":5,"origin_protocol_policy":"http-only","origin_read_timeout":30,"origin_ssl_protocols":["TLSv1.2"]}],"domain_name":"127.0.0.1","origin_access_control_id":"","origin_id":"api","origin_path":"","origin_shield":[],"s3_origin_config":[],"vpc_origin_config":[]},{"connection_attempts":3,"connection_timeout":10,"custom_header":[],"custom_origin_config":[],"domain_name":"site-assets.s3.us-east-1.amazonaws.com","origin_access_control_id":"","origin_id":"static","origin_path":"","origin_shield":[],"s3_origin_config":[{"origin_access_identity":""}],"vpc_origin_config":[]}],"origin_group":[],"price_class":"PriceClass_All","restrictions":[{"geo_restriction":[{"restriction_type":"none"}]}],"retain_on_delete":false,"staging":false,"tags":null,"viewer_certificate":[{"acm_certificate_arn":null,"cloudfront_default_certificate":true,"iam_certificate_id":null,"minimum_protocol_version":"TLSv1","ssl_support_method":null}],"viewer_mtls_config":[],"wait_for_deployment":true,"web_acl_id":null},"sensitive_values":{"aliases":[false],"cache_tag_config":[],"connection_function_association":[],"custom_error_response":[],"default_cache_behavior":[{"allowed_methods":[false,false],"cached_methods":[false,false],"forwarded_values":[],"function_association":[],"grpc_config":[],"lambda_function_association":[],"trusted_key_groups":[],"trusted_signers":[]}],"logging_config":[],"ordered_cache_behavior":[{"allowed_methods":[false,false,false,false,false,false,false],"cached_methods":[false,false],"forwarded_values":[],"function_association":[],"grpc_config":[],"lambda_function_association":[]}],"origin":[{"custom_header":[],"custom_origin_config":[{"origin_ssl_protocols":[false]}],"origin_shield":[],"s3_origin_config":[],"vpc_origin_config":[]},{"custom_header":[],"custom_origin_config":[],"origin_shield":[],"s3_origin_config":[{}],"vpc_origin_config":[]}],"origin_group":[],"restrictions":[{"geo_restriction":[{"locations":[]}]}],"tags_all":{},"trusted_key_groups":[],"trusted_signers":[],"viewer_certificate":[{}],"viewer_mtls_config":[]},"identity_schema_version":0,"identity":{"account_id":null,"id":null}}]}},"resource_changes":[{"address":"aws_cloudfront_distribution.site_distribution","mode":"managed","type":"aws_cloudfront_distribution","name":"site_distribution","provider_name":"registry.terraform.io/hashicorp/aws","change":{"actions":["create"],"before":null,"after":{"aliases":["site.example.test"],"anycast_ip_list_id":null,"cache_tag_config":[],"comment":null,"connection_function_association":[],"custom_error_response":[],"default_cache_behavior":[{"allowed_methods":["GET","HEAD"],"cache_policy_id":"658327ea-f89d-4fab-a63d-7e88639e58f6","cached_methods":["GET","HEAD"],"compress":true,"field_level_encryption_id":null,"forwarded_values":[],"function_association":[],"lambda_function_association":[],"min_ttl":0,"origin_request_policy_id":null,"realtime_log_config_arn":null,"response_headers_policy_id":null,"smooth_streaming":null,"target_origin_id":"static","viewer_protocol_policy":"allow-all"}],"default_root_object":"index.html","enabled":true,"http_version":"http2","is_ipv6_enabled":false,"logging_config":[],"ordered_cache_behavior":[{"allowed_methods":["DELETE","GET","HEAD","OPTIONS","PATCH","POST","PUT"],"cache_policy_id":"4135ea2d-6df8-44a3-9df3-4b5a84be39ad","cached_methods":["GET","HEAD"],"compress":false,"field_level_encryption_id":null,"forwarded_values":[],"function_association":[],"lambda_function_association":[],"min_ttl":0,"origin_request_policy_id":"216adef6-5c7f-47e4-b989-5492eafa07d3","path_pattern":"/api/*","realtime_log_config_arn":null,"response_headers_policy_id":null,"smooth_streaming":null,"target_origin_id":"api","trusted_key_groups":null,"trusted_signers":null,"viewer_protocol_policy":"allow-all"}],"origin":[{"connection_attempts":3,"connection_timeout":10,"custom_header":[],"custom_origin_config":[{"http_port":3000,"https_port":443,"ip_address_type":"","origin_keepalive_timeout":5,"origin_protocol_policy":"http-only","origin_read_timeout":30,"origin_ssl_protocols":["TLSv1.2"]}],"domain_name":"127.0.0.1","origin_access_control_id":"","origin_id":"api","origin_path":"","origin_shield":[],"s3_origin_config":[],"vpc_origin_config":[]},{"connection_attempts":3,"connection_timeout":10,"custom_header":[],"custom_origin_config":[],"domain_name":"site-assets.s3.us-east-1.amazonaws.com","origin_access_control_id":"","origin_id":"static","origin_path":"","origin_shield":[],"s3_origin_config":[{"origin_access_identity":""}],"vpc_origin_config":[]}],"origin_group":[],"price_class":"PriceClass_All","restrictions":[{"geo_restriction":[{"restriction_type":"none"}]}],"retain_on_delete":false,"staging":false,"tags":null,"viewer_certificate":[{"acm_certificate_arn":null,"cloudfront_default_certificate":true,"iam_certificate_id":null,"minimum_protocol_version":"TLSv1","ssl_support_method":null}],"viewer_mtls_config":[],"wait_for_deployment":true,"web_acl_id":null},"after_unknown":{"aliases":[false],"arn":true,"cache_tag_config":[],"caller_reference":true,"connection_function_association":[],"continuous_deployment_policy_id":true,"custom_error_response":[],"default_cache_behavior":[{"allowed_methods":[false,false],"cached_methods":[false,false],"default_ttl":true,"forwarded_values":[],"function_association":[],"grpc_config":true,"lambda_function_association":[],"max_ttl":true,"trusted_key_groups":true,"trusted_signers":true}],"domain_name":true,"etag":true,"hosted_zone_id":true,"id":true,"in_progress_validation_batches":true,"last_modified_time":true,"logging_config":[],"logging_v1_enabled":true,"ordered_cache_behavior":[{"allowed_methods":[false,false,false,false,false,false,false],"cached_methods":[false,false],"default_ttl":true,"forwarded_values":[],"function_association":[],"grpc_config":true,"lambda_function_association":[],"max_ttl":true}],"origin":[{"custom_header":[],"custom_origin_config":[{"origin_ssl_protocols":[false]}],"origin_shield":[],"response_completion_timeout":true,"s3_origin_config":[],"vpc_origin_config":[]},{"custom_header":[],"custom_origin_config":[],"origin_shield":[],"response_completion_timeout":true,"s3_origin_config":[{}],"vpc_origin_config":[]}],"origin_group":[],"restrictions":[{"geo_restriction":[{"locations":true}]}],"status":true,"tags_all":true,"trusted_key_groups":true,"trusted_signers":true,"viewer_certificate":[{}],"viewer_mtls_config":[]},"before_sensitive":false,"after_sensitive":{"aliases":[false],"cache_tag_config":[],"connection_function_association":[],"custom_error_response":[],"default_cache_behavior":[{"allowed_methods":[false,false],"cached_methods":[false,false],"forwarded_values":[],"function_association":[],"grpc_config":[],"lambda_function_association":[],"trusted_key_groups":[],"trusted_signers":[]}],"logging_config":[],"ordered_cache_behavior":[{"allowed_methods":[false,false,false,false,false,false,false],"cached_methods":[false,false],"forwarded_values":[],"function_association":[],"grpc_config":[],"lambda_function_association":[]}],"origin":[{"custom_header":[],"custom_origin_config":[{"origin_ssl_protocols":[false]}],"origin_shield":[],"s3_origin_config":[],"vpc_origin_config":[]},{"custom_header":[],"custom_origin_config":[],"origin_shield":[],"s3_origin_config":[{}],"vpc_origin_config":[]}],"origin_group":[],"restrictions":[{"geo_restriction":[{"locations":[]}]}],"tags_all":{},"trusted_key_groups":[],"trusted_signers":[],"viewer_certificate":[{}],"viewer_mtls_config":[]},"after_identity":{"account_id":null,"id":null}}}],"configuration":{"provider_config":{"aws":{"name":"aws","full_name":"registry.terraform.io/hashicorp/aws","version_constraint":">= 5.0.0","expressions":{"access_key":{"constant_value":"test"},"region":{"constant_value":"us-east-1"},"secret_key":{"constant_value":"test"},"skip_credentials_validation":{"constant_value":true},"skip_metadata_api_check":{"constant_value":true},"skip_requesting_account_id":{"constant_value":true}}}},"root_module":{"resources":[{"address":"aws_cloudfront_distribution.site_distribution","mode":"managed","type":"aws_cloudfront_distribution","name":"site_distribution","provider_config_key":"aws","expressions":{"aliases":{"constant_value":["site.example.test"]},"default_cache_behavior":[{"allowed_methods":{"constant_value":["GET","HEAD"]},"cache_policy_id":{"constant_value":"658327ea-f89d-4fab-a63d-7e88639e58f6"},"cached_methods":{"constant_value":["GET","HEAD"]},"compress":{"constant_value":true},"target_origin_id":{"constant_value":"static"},"viewer_protocol_policy":{"constant_value":"allow-all"}}],"default_root_object":{"constant_value":"index.html"},"enabled":{"constant_value":true},"ordered_cache_behavior":[{"allowed_methods":{"constant_value":["GET","HEAD","OPTIONS","PUT","POST","PATCH","DELETE"]},"cache_policy_id":{"constant_value":"4135ea2d-6df8-44a3-9df3-4b5a84be39ad"},"cached_methods":{"constant_value":["GET","HEAD"]},"origin_request_policy_id":{"constant_value":"216adef6-5c7f-47e4-b989-5492eafa07d3"},"path_pattern":{"constant_value":"/api/*"},"target_origin_id":{"constant_value":"api"},"viewer_protocol_policy":{"constant_value":"allow-all"}}],"origin":[{"domain_name":{"constant_value":"site-assets.s3.us-east-1.amazonaws.com"},"origin_id":{"constant_value":"static"},"s3_origin_config":[{"origin_access_identity":{"constant_value":""}}]},{"custom_origin_config":[{"http_port":{"constant_value":3000},"https_port":{"constant_value":443},"origin_protocol_policy":{"constant_value":"http-only"},"origin_ssl_protocols":{"constant_value":["TLSv1.2"]}}],"domain_name":{"constant_value":"127.0.0.1"},"origin_id":{"constant_value":"api"}}],"restrictions":[{"geo_restriction":[{"restriction_type":{"constant_value":"none"}}]}],"viewer_certificate":[{"cloudfront_default_certificate":{"constant_value":true}}]},"schema_version":1}]}},"applyable":true,"complete":true,"errored":false}
+{
+  "applyable": true,
+  "complete": true,
+  "configuration": {
+    "provider_config": {
+      "aws": {
+        "expressions": {
+          "access_key": {
+            "constant_value": "test"
+          },
+          "region": {
+            "constant_value": "us-east-1"
+          },
+          "secret_key": {
+            "constant_value": "test"
+          },
+          "skip_credentials_validation": {
+            "constant_value": true
+          },
+          "skip_metadata_api_check": {
+            "constant_value": true
+          },
+          "skip_requesting_account_id": {
+            "constant_value": true
+          }
+        },
+        "full_name": "registry.terraform.io/hashicorp/aws",
+        "name": "aws",
+        "version_constraint": "\u003e= 5.0.0"
+      }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_distribution.site_distribution",
+          "expressions": {
+            "aliases": {
+              "constant_value": [
+                "site.example.test"
+              ]
+            },
+            "default_cache_behavior": [
+              {
+                "allowed_methods": {
+                  "constant_value": [
+                    "GET",
+                    "HEAD"
+                  ]
+                },
+                "cache_policy_id": {
+                  "constant_value": "658327ea-f89d-4fab-a63d-7e88639e58f6"
+                },
+                "cached_methods": {
+                  "constant_value": [
+                    "GET",
+                    "HEAD"
+                  ]
+                },
+                "compress": {
+                  "constant_value": true
+                },
+                "target_origin_id": {
+                  "constant_value": "static"
+                },
+                "viewer_protocol_policy": {
+                  "constant_value": "allow-all"
+                }
+              }
+            ],
+            "default_root_object": {
+              "constant_value": "index.html"
+            },
+            "enabled": {
+              "constant_value": true
+            },
+            "ordered_cache_behavior": [
+              {
+                "allowed_methods": {
+                  "constant_value": [
+                    "GET",
+                    "HEAD",
+                    "OPTIONS",
+                    "PUT",
+                    "POST",
+                    "PATCH",
+                    "DELETE"
+                  ]
+                },
+                "cache_policy_id": {
+                  "constant_value": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+                },
+                "cached_methods": {
+                  "constant_value": [
+                    "GET",
+                    "HEAD"
+                  ]
+                },
+                "origin_request_policy_id": {
+                  "constant_value": "216adef6-5c7f-47e4-b989-5492eafa07d3"
+                },
+                "path_pattern": {
+                  "constant_value": "/api/*"
+                },
+                "target_origin_id": {
+                  "constant_value": "api"
+                },
+                "viewer_protocol_policy": {
+                  "constant_value": "allow-all"
+                }
+              }
+            ],
+            "origin": [
+              {
+                "domain_name": {
+                  "constant_value": "site-assets.s3.us-east-1.amazonaws.com"
+                },
+                "origin_id": {
+                  "constant_value": "static"
+                },
+                "s3_origin_config": [
+                  {
+                    "origin_access_identity": {
+                      "constant_value": ""
+                    }
+                  }
+                ]
+              },
+              {
+                "custom_origin_config": [
+                  {
+                    "http_port": {
+                      "constant_value": 3000
+                    },
+                    "https_port": {
+                      "constant_value": 443
+                    },
+                    "origin_protocol_policy": {
+                      "constant_value": "http-only"
+                    },
+                    "origin_ssl_protocols": {
+                      "constant_value": [
+                        "TLSv1.2"
+                      ]
+                    }
+                  }
+                ],
+                "domain_name": {
+                  "constant_value": "127.0.0.1"
+                },
+                "origin_id": {
+                  "constant_value": "api"
+                }
+              }
+            ],
+            "restrictions": [
+              {
+                "geo_restriction": [
+                  {
+                    "restriction_type": {
+                      "constant_value": "none"
+                    }
+                  }
+                ]
+              }
+            ],
+            "viewer_certificate": [
+              {
+                "cloudfront_default_certificate": {
+                  "constant_value": true
+                }
+              }
+            ]
+          },
+          "mode": "managed",
+          "name": "site_distribution",
+          "provider_config_key": "aws",
+          "schema_version": 1,
+          "type": "aws_cloudfront_distribution"
+        }
+      ]
+    }
+  },
+  "errored": false,
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_distribution.site_distribution",
+          "identity": {
+            "account_id": null,
+            "id": null
+          },
+          "identity_schema_version": 0,
+          "mode": "managed",
+          "name": "site_distribution",
+          "provider_name": "registry.terraform.io/hashicorp/aws",
+          "schema_version": 1,
+          "sensitive_values": {
+            "aliases": [
+              false
+            ],
+            "cache_tag_config": [],
+            "connection_function_association": [],
+            "custom_error_response": [],
+            "default_cache_behavior": [
+              {
+                "allowed_methods": [
+                  false,
+                  false
+                ],
+                "cached_methods": [
+                  false,
+                  false
+                ],
+                "forwarded_values": [],
+                "function_association": [],
+                "grpc_config": [],
+                "lambda_function_association": [],
+                "trusted_key_groups": [],
+                "trusted_signers": []
+              }
+            ],
+            "logging_config": [],
+            "ordered_cache_behavior": [
+              {
+                "allowed_methods": [
+                  false,
+                  false,
+                  false,
+                  false,
+                  false,
+                  false,
+                  false
+                ],
+                "cached_methods": [
+                  false,
+                  false
+                ],
+                "forwarded_values": [],
+                "function_association": [],
+                "grpc_config": [],
+                "lambda_function_association": []
+              }
+            ],
+            "origin": [
+              {
+                "custom_header": [],
+                "custom_origin_config": [
+                  {
+                    "origin_ssl_protocols": [
+                      false
+                    ]
+                  }
+                ],
+                "origin_shield": [],
+                "s3_origin_config": [],
+                "vpc_origin_config": []
+              },
+              {
+                "custom_header": [],
+                "custom_origin_config": [],
+                "origin_shield": [],
+                "s3_origin_config": [
+                  {}
+                ],
+                "vpc_origin_config": []
+              }
+            ],
+            "origin_group": [],
+            "restrictions": [
+              {
+                "geo_restriction": [
+                  {
+                    "locations": []
+                  }
+                ]
+              }
+            ],
+            "tags_all": {},
+            "trusted_key_groups": [],
+            "trusted_signers": [],
+            "viewer_certificate": [
+              {}
+            ],
+            "viewer_mtls_config": []
+          },
+          "type": "aws_cloudfront_distribution",
+          "values": {
+            "aliases": [
+              "site.example.test"
+            ],
+            "anycast_ip_list_id": null,
+            "cache_tag_config": [],
+            "comment": null,
+            "connection_function_association": [],
+            "custom_error_response": [],
+            "default_cache_behavior": [
+              {
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cache_policy_id": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "compress": true,
+                "field_level_encryption_id": null,
+                "forwarded_values": [],
+                "function_association": [],
+                "lambda_function_association": [],
+                "min_ttl": 0,
+                "origin_request_policy_id": null,
+                "realtime_log_config_arn": null,
+                "response_headers_policy_id": null,
+                "smooth_streaming": null,
+                "target_origin_id": "static",
+                "viewer_protocol_policy": "allow-all"
+              }
+            ],
+            "default_root_object": "index.html",
+            "enabled": true,
+            "http_version": "http2",
+            "is_ipv6_enabled": false,
+            "logging_config": [],
+            "ordered_cache_behavior": [
+              {
+                "allowed_methods": [
+                  "DELETE",
+                  "GET",
+                  "HEAD",
+                  "OPTIONS",
+                  "PATCH",
+                  "POST",
+                  "PUT"
+                ],
+                "cache_policy_id": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "compress": false,
+                "field_level_encryption_id": null,
+                "forwarded_values": [],
+                "function_association": [],
+                "lambda_function_association": [],
+                "min_ttl": 0,
+                "origin_request_policy_id": "216adef6-5c7f-47e4-b989-5492eafa07d3",
+                "path_pattern": "/api/*",
+                "realtime_log_config_arn": null,
+                "response_headers_policy_id": null,
+                "smooth_streaming": null,
+                "target_origin_id": "api",
+                "trusted_key_groups": null,
+                "trusted_signers": null,
+                "viewer_protocol_policy": "allow-all"
+              }
+            ],
+            "origin": [
+              {
+                "connection_attempts": 3,
+                "connection_timeout": 10,
+                "custom_header": [],
+                "custom_origin_config": [
+                  {
+                    "http_port": 3000,
+                    "https_port": 443,
+                    "ip_address_type": "",
+                    "origin_keepalive_timeout": 5,
+                    "origin_protocol_policy": "http-only",
+                    "origin_read_timeout": 30,
+                    "origin_ssl_protocols": [
+                      "TLSv1.2"
+                    ]
+                  }
+                ],
+                "domain_name": "127.0.0.1",
+                "origin_access_control_id": "",
+                "origin_id": "api",
+                "origin_path": "",
+                "origin_shield": [],
+                "s3_origin_config": [],
+                "vpc_origin_config": []
+              },
+              {
+                "connection_attempts": 3,
+                "connection_timeout": 10,
+                "custom_header": [],
+                "custom_origin_config": [],
+                "domain_name": "site-assets.s3.us-east-1.amazonaws.com",
+                "origin_access_control_id": "",
+                "origin_id": "static",
+                "origin_path": "",
+                "origin_shield": [],
+                "s3_origin_config": [
+                  {
+                    "origin_access_identity": ""
+                  }
+                ],
+                "vpc_origin_config": []
+              }
+            ],
+            "origin_group": [],
+            "price_class": "PriceClass_All",
+            "restrictions": [
+              {
+                "geo_restriction": [
+                  {
+                    "restriction_type": "none"
+                  }
+                ]
+              }
+            ],
+            "retain_on_delete": false,
+            "staging": false,
+            "tags": null,
+            "viewer_certificate": [
+              {
+                "acm_certificate_arn": null,
+                "cloudfront_default_certificate": true,
+                "iam_certificate_id": null,
+                "minimum_protocol_version": "TLSv1",
+                "ssl_support_method": null
+              }
+            ],
+            "viewer_mtls_config": [],
+            "wait_for_deployment": true,
+            "web_acl_id": null
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_cloudfront_distribution.site_distribution",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "aliases": [
+            "site.example.test"
+          ],
+          "anycast_ip_list_id": null,
+          "cache_tag_config": [],
+          "comment": null,
+          "connection_function_association": [],
+          "custom_error_response": [],
+          "default_cache_behavior": [
+            {
+              "allowed_methods": [
+                "GET",
+                "HEAD"
+              ],
+              "cache_policy_id": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+              "cached_methods": [
+                "GET",
+                "HEAD"
+              ],
+              "compress": true,
+              "field_level_encryption_id": null,
+              "forwarded_values": [],
+              "function_association": [],
+              "lambda_function_association": [],
+              "min_ttl": 0,
+              "origin_request_policy_id": null,
+              "realtime_log_config_arn": null,
+              "response_headers_policy_id": null,
+              "smooth_streaming": null,
+              "target_origin_id": "static",
+              "viewer_protocol_policy": "allow-all"
+            }
+          ],
+          "default_root_object": "index.html",
+          "enabled": true,
+          "http_version": "http2",
+          "is_ipv6_enabled": false,
+          "logging_config": [],
+          "ordered_cache_behavior": [
+            {
+              "allowed_methods": [
+                "DELETE",
+                "GET",
+                "HEAD",
+                "OPTIONS",
+                "PATCH",
+                "POST",
+                "PUT"
+              ],
+              "cache_policy_id": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+              "cached_methods": [
+                "GET",
+                "HEAD"
+              ],
+              "compress": false,
+              "field_level_encryption_id": null,
+              "forwarded_values": [],
+              "function_association": [],
+              "lambda_function_association": [],
+              "min_ttl": 0,
+              "origin_request_policy_id": "216adef6-5c7f-47e4-b989-5492eafa07d3",
+              "path_pattern": "/api/*",
+              "realtime_log_config_arn": null,
+              "response_headers_policy_id": null,
+              "smooth_streaming": null,
+              "target_origin_id": "api",
+              "trusted_key_groups": null,
+              "trusted_signers": null,
+              "viewer_protocol_policy": "allow-all"
+            }
+          ],
+          "origin": [
+            {
+              "connection_attempts": 3,
+              "connection_timeout": 10,
+              "custom_header": [],
+              "custom_origin_config": [
+                {
+                  "http_port": 3000,
+                  "https_port": 443,
+                  "ip_address_type": "",
+                  "origin_keepalive_timeout": 5,
+                  "origin_protocol_policy": "http-only",
+                  "origin_read_timeout": 30,
+                  "origin_ssl_protocols": [
+                    "TLSv1.2"
+                  ]
+                }
+              ],
+              "domain_name": "127.0.0.1",
+              "origin_access_control_id": "",
+              "origin_id": "api",
+              "origin_path": "",
+              "origin_shield": [],
+              "s3_origin_config": [],
+              "vpc_origin_config": []
+            },
+            {
+              "connection_attempts": 3,
+              "connection_timeout": 10,
+              "custom_header": [],
+              "custom_origin_config": [],
+              "domain_name": "site-assets.s3.us-east-1.amazonaws.com",
+              "origin_access_control_id": "",
+              "origin_id": "static",
+              "origin_path": "",
+              "origin_shield": [],
+              "s3_origin_config": [
+                {
+                  "origin_access_identity": ""
+                }
+              ],
+              "vpc_origin_config": []
+            }
+          ],
+          "origin_group": [],
+          "price_class": "PriceClass_All",
+          "restrictions": [
+            {
+              "geo_restriction": [
+                {
+                  "restriction_type": "none"
+                }
+              ]
+            }
+          ],
+          "retain_on_delete": false,
+          "staging": false,
+          "tags": null,
+          "viewer_certificate": [
+            {
+              "acm_certificate_arn": null,
+              "cloudfront_default_certificate": true,
+              "iam_certificate_id": null,
+              "minimum_protocol_version": "TLSv1",
+              "ssl_support_method": null
+            }
+          ],
+          "viewer_mtls_config": [],
+          "wait_for_deployment": true,
+          "web_acl_id": null
+        },
+        "after_identity": {
+          "account_id": null,
+          "id": null
+        },
+        "after_sensitive": {
+          "aliases": [
+            false
+          ],
+          "cache_tag_config": [],
+          "connection_function_association": [],
+          "custom_error_response": [],
+          "default_cache_behavior": [
+            {
+              "allowed_methods": [
+                false,
+                false
+              ],
+              "cached_methods": [
+                false,
+                false
+              ],
+              "forwarded_values": [],
+              "function_association": [],
+              "grpc_config": [],
+              "lambda_function_association": [],
+              "trusted_key_groups": [],
+              "trusted_signers": []
+            }
+          ],
+          "logging_config": [],
+          "ordered_cache_behavior": [
+            {
+              "allowed_methods": [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+              ],
+              "cached_methods": [
+                false,
+                false
+              ],
+              "forwarded_values": [],
+              "function_association": [],
+              "grpc_config": [],
+              "lambda_function_association": []
+            }
+          ],
+          "origin": [
+            {
+              "custom_header": [],
+              "custom_origin_config": [
+                {
+                  "origin_ssl_protocols": [
+                    false
+                  ]
+                }
+              ],
+              "origin_shield": [],
+              "s3_origin_config": [],
+              "vpc_origin_config": []
+            },
+            {
+              "custom_header": [],
+              "custom_origin_config": [],
+              "origin_shield": [],
+              "s3_origin_config": [
+                {}
+              ],
+              "vpc_origin_config": []
+            }
+          ],
+          "origin_group": [],
+          "restrictions": [
+            {
+              "geo_restriction": [
+                {
+                  "locations": []
+                }
+              ]
+            }
+          ],
+          "tags_all": {},
+          "trusted_key_groups": [],
+          "trusted_signers": [],
+          "viewer_certificate": [
+            {}
+          ],
+          "viewer_mtls_config": []
+        },
+        "after_unknown": {
+          "aliases": [
+            false
+          ],
+          "arn": true,
+          "cache_tag_config": [],
+          "caller_reference": true,
+          "connection_function_association": [],
+          "continuous_deployment_policy_id": true,
+          "custom_error_response": [],
+          "default_cache_behavior": [
+            {
+              "allowed_methods": [
+                false,
+                false
+              ],
+              "cached_methods": [
+                false,
+                false
+              ],
+              "default_ttl": true,
+              "forwarded_values": [],
+              "function_association": [],
+              "grpc_config": true,
+              "lambda_function_association": [],
+              "max_ttl": true,
+              "trusted_key_groups": true,
+              "trusted_signers": true
+            }
+          ],
+          "domain_name": true,
+          "etag": true,
+          "hosted_zone_id": true,
+          "id": true,
+          "in_progress_validation_batches": true,
+          "last_modified_time": true,
+          "logging_config": [],
+          "logging_v1_enabled": true,
+          "ordered_cache_behavior": [
+            {
+              "allowed_methods": [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+              ],
+              "cached_methods": [
+                false,
+                false
+              ],
+              "default_ttl": true,
+              "forwarded_values": [],
+              "function_association": [],
+              "grpc_config": true,
+              "lambda_function_association": [],
+              "max_ttl": true
+            }
+          ],
+          "origin": [
+            {
+              "custom_header": [],
+              "custom_origin_config": [
+                {
+                  "origin_ssl_protocols": [
+                    false
+                  ]
+                }
+              ],
+              "origin_shield": [],
+              "response_completion_timeout": true,
+              "s3_origin_config": [],
+              "vpc_origin_config": []
+            },
+            {
+              "custom_header": [],
+              "custom_origin_config": [],
+              "origin_shield": [],
+              "response_completion_timeout": true,
+              "s3_origin_config": [
+                {}
+              ],
+              "vpc_origin_config": []
+            }
+          ],
+          "origin_group": [],
+          "restrictions": [
+            {
+              "geo_restriction": [
+                {
+                  "locations": true
+                }
+              ]
+            }
+          ],
+          "status": true,
+          "tags_all": true,
+          "trusted_key_groups": true,
+          "trusted_signers": true,
+          "viewer_certificate": [
+            {}
+          ],
+          "viewer_mtls_config": []
+        },
+        "before": null,
+        "before_sensitive": false
+      },
+      "mode": "managed",
+      "name": "site_distribution",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_cloudfront_distribution"
+    }
+  ],
+  "terraform_version": "1.15.6"
+}

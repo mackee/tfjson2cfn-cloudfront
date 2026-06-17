@@ -11,22 +11,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// examples are converted from their plan.json and compared against the golden
-// CloudFormation template copied from localfront.
-var examples = []string{"spa-hosting", "static-and-api", "functions", "cors-security"}
+const examplesRoot = "../../examples"
 
-func TestGolden(t *testing.T) {
-	for _, ex := range examples {
-		t.Run(ex, func(t *testing.T) {
-			dir := filepath.Join("..", "..", "examples", ex)
-			planData, err := os.ReadFile(filepath.Join(dir, "plan.json"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			goldenData, err := os.ReadFile(filepath.Join(dir, "template.yaml"))
-			if err != nil {
-				t.Fatal(err)
-			}
+// TestExamples converts each examples/<name>/plan.json fixture and checks the
+// result is CloudFront-equivalent to the template.yaml that localfront ships.
+//
+// Examples are discovered automatically: drop in a directory with a plan.json
+// and a template.yaml and it is picked up. Regenerate the plan.json fixtures
+// from their Terraform with `go test ./internal/converter -update` (see
+// regen_test.go).
+func TestExamples(t *testing.T) {
+	dirs := exampleDirs(t)
+	if len(dirs) == 0 {
+		t.Fatalf("no example fixtures discovered under %s", examplesRoot)
+	}
+	for _, dir := range dirs {
+		t.Run(filepath.Base(dir), func(t *testing.T) {
+			planData := mustRead(t, filepath.Join(dir, "plan.json"))
+			goldenData := mustRead(t, filepath.Join(dir, "template.yaml"))
 
 			res, err := Convert(planData, Options{Format: "yaml"})
 			if err != nil {
@@ -36,28 +38,64 @@ func TestGolden(t *testing.T) {
 			got := canonOf(t, res.Output)
 			want := canonOf(t, goldenData)
 			if !reflect.DeepEqual(got, want) {
-				t.Errorf("converted template does not match golden\n=== generated YAML ===\n%s\n=== generated (canonical) ===\n%s\n=== golden (canonical) ===\n%s",
-					res.Output, pretty(got), pretty(want))
+				t.Errorf("converted template is not CloudFront-equivalent to golden\n=== generated ===\n%s\n=== golden (canonical) ===\n%s\n=== generated (canonical) ===\n%s",
+					res.Output, pretty(want), pretty(got))
 			}
 		})
 	}
 }
 
-func TestJSONOutputParses(t *testing.T) {
-	dir := filepath.Join("..", "..", "examples", "functions")
-	planData, err := os.ReadFile(filepath.Join(dir, "plan.json"))
+// TestJSONOutputMatchesYAML checks the json format is semantically identical to
+// the yaml format (intrinsics differ only in long vs short form).
+func TestJSONOutputMatchesYAML(t *testing.T) {
+	planData := mustRead(t, filepath.Join(examplesRoot, "functions", "plan.json"))
+	jsonRes, err := Convert(planData, Options{Format: "json"})
+	if err != nil {
+		t.Fatalf("convert json: %v", err)
+	}
+	yamlRes, err := Convert(planData, Options{Format: "yaml"})
+	if err != nil {
+		t.Fatalf("convert yaml: %v", err)
+	}
+	if !reflect.DeepEqual(canonOf(t, jsonRes.Output), canonOf(t, yamlRes.Output)) {
+		t.Errorf("json output is not equivalent to yaml output\njson:\n%s", jsonRes.Output)
+	}
+}
+
+// exampleDirs returns the example directories that have both a plan.json and a
+// template.yaml, sorted for stable test ordering.
+func exampleDirs(t *testing.T) []string {
+	t.Helper()
+	entries, err := os.ReadDir(examplesRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := Convert(planData, Options{Format: "json"})
+	var dirs []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		dir := filepath.Join(examplesRoot, e.Name())
+		if fileExists(filepath.Join(dir, "plan.json")) && fileExists(filepath.Join(dir, "template.yaml")) {
+			dirs = append(dirs, dir)
+		}
+	}
+	sort.Strings(dirs)
+	return dirs
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("Convert json: %v", err)
+		t.Fatal(err)
 	}
-	// JSON output must be semantically equal to the YAML output.
-	yamlRes, _ := Convert(planData, Options{Format: "yaml"})
-	if !reflect.DeepEqual(canonOf(t, res.Output), canonOf(t, yamlRes.Output)) {
-		t.Errorf("json output differs from yaml output\njson:\n%s", res.Output)
-	}
+	return data
 }
 
 // unorderedKeys names CloudFormation properties whose list order is not

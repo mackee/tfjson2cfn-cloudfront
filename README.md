@@ -192,20 +192,24 @@ $ go build ./...
 $ go test ./...            # golden tests: examples/<name>/plan.json -> template.yaml
 ```
 
-The golden tests run entirely from the committed `plan.json` fixtures, so they
-need neither terraform nor network. They compare the converted output to each
-golden template with a CloudFront-aware canonical form: mappings are
-order-independent, set-typed lists (`Origins`, `AllowedMethods`,
-`CustomErrorResponses`, …) are compared as multisets, `CacheBehaviors` keeps its
-precedence order, and `!Ref` / `!GetAtt` are matched in both YAML short form and
-JSON long form.
+`TestExamples` discovers every `examples/<name>/` with a `plan.json` and a
+`template.yaml`, converts the plan, and checks the result is CloudFront-
+equivalent to the golden template. It runs entirely from the committed
+`plan.json` fixtures, so it needs neither terraform nor network. The comparison
+uses a CloudFront-aware canonical form: mappings are order-independent, set-typed
+lists (`Origins`, `AllowedMethods`, `CustomErrorResponses`, …) are compared as
+multisets, `CacheBehaviors` keeps its precedence order, and `!Ref` / `!GetAtt`
+match in both YAML short form and JSON long form. Add a case by dropping a new
+`examples/<name>/` directory — no test code changes.
 
-When you change an example's Terraform, regenerate its fixture (requires
-terraform + network for the AWS provider):
+The fixtures are regenerated from their Terraform by the same suite under
+`-update` (requires terraform — see `aqua.yaml` — and network for the AWS
+provider). It runs `terraform init/plan/show -json` per example and rewrites
+`plan.json` (dropping the volatile timestamp, sorted and indented):
 
 ```console
-$ examples/regenerate.sh
-$ go test ./...
+$ go test ./internal/converter -update
+$ go test ./...                          # verify, then commit the fixtures
 ```
 
 ## Roadmap
