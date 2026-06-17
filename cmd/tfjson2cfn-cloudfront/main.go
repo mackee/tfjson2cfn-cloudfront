@@ -14,11 +14,15 @@ import (
 	"github.com/mackee/tfjson2cfn-cloudfront/internal/converter"
 )
 
+// version is set at build time via -ldflags "-X main.version=...".
+var version = "dev"
+
 type cli struct {
-	Input    string `kong:"name='input',short='i',default='-',help='Path to terraform show -json output (- for stdin).'"`
-	Output   string `kong:"name='output',short='o',default='-',help='Path to write the CloudFormation template (- for stdout).'"`
-	Format   string `kong:"name='format',default='yaml',enum='yaml,json',help='Output format: yaml or json.'"`
-	LogLevel string `kong:"name='log-level',default='info',enum='debug,info,warn,error',help='Log verbosity (to stderr).'"`
+	Input    string           `kong:"name='input',short='i',default='-',help='Path to terraform show -json output (- for stdin).'"`
+	Output   string           `kong:"name='output',short='o',default='-',help='Path to write the CloudFormation template (- for stdout).'"`
+	Format   string           `kong:"name='format',default='yaml',enum='yaml,json',help='Output format: yaml or json.'"`
+	LogLevel string           `kong:"name='log-level',default='info',enum='debug,info,warn,error',help='Log verbosity (to stderr).'"`
+	Version  kong.VersionFlag `kong:"name='version',help='Print version and exit.'"`
 }
 
 func main() {
@@ -27,6 +31,7 @@ func main() {
 		kong.Name("tfjson2cfn-cloudfront"),
 		kong.Description("Convert a Terraform plan (terraform show -json) into a CloudFront-only CloudFormation template for localfront."),
 		kong.UsageOnError(),
+		kong.Vars{"version": version},
 	)
 	if err := run(c); err != nil {
 		kctx.FatalIfErrorf(err)

@@ -37,6 +37,7 @@ terraform show -json plan.tfplan   ─┐
 
 ```console
 $ go install github.com/mackee/tfjson2cfn-cloudfront/cmd/tfjson2cfn-cloudfront@latest
+# or download a pre-built binary for your OS/arch from the GitHub Releases page
 
 $ terraform plan -out plan.tfplan
 $ terraform show -json plan.tfplan | tfjson2cfn-cloudfront > template.yaml
@@ -194,9 +195,13 @@ $ golangci-lint run ./...  # installed via aqua (aqua i)
 ```
 
 CI (`.github/workflows/ci.yml`) runs `go vet` / gofmt / `go build` / `go test`
-and golangci-lint on every push and pull request. GitHub Actions are pinned to
-commit SHAs with [pinact](https://github.com/suzuki-shunsuke/pinact) (`pinact run`);
-both pinact and golangci-lint come from `aqua.yaml`.
+and golangci-lint on every push and pull request. Releases are cut by
+`.github/workflows/release.yml`: pushing a `vX.Y.Z` tag runs
+[GoReleaser](https://goreleaser.com) (`.goreleaser.yaml`), which builds the
+cross-platform binaries and publishes a GitHub Release. Dry-run locally with
+`goreleaser release --snapshot --clean`. GitHub Actions are pinned to commit
+SHAs with [pinact](https://github.com/suzuki-shunsuke/pinact) (`pinact run`);
+pinact, golangci-lint, and goreleaser all come from `aqua.yaml`.
 
 `TestExamples` discovers every `examples/<name>/` with a `plan.json` and a
 `template.yaml`, converts the plan, and checks the result is CloudFront-

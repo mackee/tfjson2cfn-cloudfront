@@ -14,3 +14,4 @@ packages:
 - name: hashicorp/terraform@v1.15.6 # generate plan.json fixtures (go test -update)
 - name: golangci/golangci-lint@v2.12.2 # linter (matches the version pinned in CI)
 - name: suzuki-shunsuke/pinact@v4.1.0 # pin GitHub Actions to commit SHAs
+- name: goreleaser/goreleaser@v2.16.0 # release binaries (matches the version pinned in CI)
