@@ -163,6 +163,137 @@ func TestLogicalIDsDisambiguateByType(t *testing.T) {
 	}
 }
 
+// TestS3OriginConfigSynthesizedForModernOAC checks the modern OAC pattern: an
+// S3 origin that sets origin_access_control_id but omits the s3_origin_config
+// block entirely (and has no custom_origin_config). The converter must still
+// emit an S3OriginConfig discriminator — with an empty OriginAccessIdentity —
+// so downstream consumers can resolve the origin type. Regression test for the
+// absent-block case (upstream issue #04).
+func TestS3OriginConfigSynthesizedForModernOAC(t *testing.T) {
+	const plan = `{
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_origin_access_control.assets",
+          "mode": "managed",
+          "type": "aws_cloudfront_origin_access_control",
+          "name": "assets",
+          "values": {
+            "name": "assets",
+            "origin_access_control_origin_type": "s3",
+            "signing_behavior": "always",
+            "signing_protocol": "sigv4"
+          }
+        },
+        {
+          "address": "aws_cloudfront_distribution.example",
+          "mode": "managed",
+          "type": "aws_cloudfront_distribution",
+          "name": "example",
+          "values": {
+            "enabled": true,
+            "aliases": ["example.test"],
+            "origin": [
+              {
+                "domain_name": "example-assets.s3.ap-northeast-1.amazonaws.com",
+                "origin_id": "assets",
+                "origin_access_control_id": "E1ABCDEFGHIJKL",
+                "custom_header": [],
+                "custom_origin_config": [],
+                "s3_origin_config": []
+              }
+            ],
+            "default_cache_behavior": [
+              {
+                "target_origin_id": "assets",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": ["GET", "HEAD"],
+                "cached_methods": ["GET", "HEAD"],
+                "cache_policy_id": "658327ea-f89d-4fab-a63d-7e88639e58f6"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_distribution.example",
+          "type": "aws_cloudfront_distribution",
+          "name": "example",
+          "expressions": {
+            "origin": [
+              {
+                "origin_id": {"constant_value": "assets"},
+                "origin_access_control_id": {
+                  "references": [
+                    "aws_cloudfront_origin_access_control.assets.id",
+                    "aws_cloudfront_origin_access_control.assets"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}`
+
+	res, err := Convert([]byte(plan), Options{Format: "json"})
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+
+	var doc struct {
+		Resources map[string]struct {
+			Properties struct {
+				DistributionConfig struct {
+					Origins []map[string]any `json:"Origins"`
+				} `json:"DistributionConfig"`
+			} `json:"Properties"`
+		} `json:"Resources"`
+	}
+	if err := json.Unmarshal(res.Output, &doc); err != nil {
+		t.Fatalf("parse output: %v\n%s", err, res.Output)
+	}
+
+	dist, ok := doc.Resources["AwsCloudfrontDistributionExample"]
+	if !ok {
+		t.Fatalf("distribution resource missing from output:\n%s", res.Output)
+	}
+	origins := dist.Properties.DistributionConfig.Origins
+	if len(origins) != 1 {
+		t.Fatalf("got %d origins, want 1:\n%s", len(origins), res.Output)
+	}
+	origin := origins[0]
+
+	// The S3 type discriminator must be present with an empty OriginAccessIdentity.
+	s3cfg, ok := origin["S3OriginConfig"].(map[string]any)
+	if !ok {
+		t.Fatalf("origin is missing S3OriginConfig discriminator:\n%s", res.Output)
+	}
+	if oai, ok := s3cfg["OriginAccessIdentity"]; !ok || oai != "" {
+		t.Errorf("S3OriginConfig.OriginAccessIdentity = %v (present=%v), want \"\"", oai, ok)
+	}
+
+	// It must not be mistaken for a custom HTTP origin.
+	if _, ok := origin["CustomOriginConfig"]; ok {
+		t.Errorf("origin unexpectedly has CustomOriginConfig:\n%s", res.Output)
+	}
+
+	// The OAC reference must still resolve to the OAC resource's logical ID.
+	oacRef, ok := origin["OriginAccessControlId"].(map[string]any)
+	if !ok || oacRef["Ref"] != "AwsCloudfrontOriginAccessControlAssets" {
+		t.Errorf("OriginAccessControlId = %v, want {\"Ref\": \"AwsCloudfrontOriginAccessControlAssets\"}", origin["OriginAccessControlId"])
+	}
+}
+
 // exampleDirs returns the example directories that have both a plan.json and a
 // template.yaml, sorted for stable test ordering.
 func exampleDirs(t *testing.T) []string {

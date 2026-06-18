@@ -86,10 +86,13 @@ func originNode(o, oc map[string]any) *yaml.Node {
 	if p := str(o, "origin_path"); p != "" {
 		m.set("OriginPath", scalar(p))
 	}
+	hasOAC := false
 	if ref := refFromExpr(oc, "origin_access_control_id"); ref != nil {
 		m.set("OriginAccessControlId", ref.resolve())
+		hasOAC = true
 	} else if s := str(o, "origin_access_control_id"); s != "" {
 		m.set("OriginAccessControlId", scalar(s))
+		hasOAC = true
 	}
 
 	if hs := blocks(o, "custom_header"); len(hs) > 0 {
@@ -103,14 +106,28 @@ func originNode(o, oc map[string]any) *yaml.Node {
 		m.set("OriginCustomHeaders", sequence(headers...))
 	}
 
-	if s3 := firstBlock(o, "s3_origin_config"); s3 != nil {
+	// An Origin needs exactly one type discriminator. Emit S3OriginConfig when
+	// the plan carries an s3_origin_config block, or — for the modern OAC
+	// pattern, where origin_access_control_id is set and the block is omitted —
+	// synthesize one with an empty OriginAccessIdentity (the form AWS itself
+	// uses to describe OAC-fronted S3 origins). The synthesis is skipped when
+	// the origin is an explicit custom HTTP origin.
+	s3 := firstBlock(o, "s3_origin_config")
+	co := firstBlock(o, "custom_origin_config")
+	if s3 != nil || (hasOAC && co == nil) {
 		s3m := newMapping()
-		if oai := str(s3, "origin_access_identity"); oai != "" {
-			s3m.set("OriginAccessIdentity", scalar(oai))
+		if s3 != nil {
+			// An empty {} is meaningful here, so it is emitted as-is.
+			if oai := str(s3, "origin_access_identity"); oai != "" {
+				s3m.set("OriginAccessIdentity", scalar(oai))
+			}
+		} else {
+			// Modern OAC pattern: the empty OriginAccessIdentity is the discriminator.
+			s3m.set("OriginAccessIdentity", scalar(""))
 		}
-		m.set("S3OriginConfig", s3m.emptyNode()) // empty {} is meaningful here
+		m.set("S3OriginConfig", s3m.emptyNode())
 	}
-	if co := firstBlock(o, "custom_origin_config"); co != nil {
+	if co != nil {
 		// Emit every value the plan carries, rather than dropping ones that
 		// happen to equal a CloudFront/Terraform default: the converter is a
 		// fidelity translator, so the output should reflect the resolved plan.
