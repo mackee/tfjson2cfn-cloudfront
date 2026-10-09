@@ -15,6 +15,9 @@ import (
 type Options struct {
 	// Format is "yaml" (default) or "json".
 	Format string
+	// References maps an exact distribution address and Terraform attribute path
+	// to explicit managed resource addresses. Only unknown security fields accept hints.
+	References map[string]map[string][]string
 }
 
 // Result is the converted template plus any non-fatal warnings (e.g. resource
@@ -54,6 +57,9 @@ func Convert(data []byte, opts Options) (*Result, error) {
 		res.Warnings = append(res.Warnings, "child modules are not yet traversed; only root-module resources are converted")
 	}
 
+	if err := validateReferenceHints(p, opts.References); err != nil {
+		return nil, err
+	}
 	resources := newMapping()
 	seen := map[string]string{}
 	count := 0
@@ -69,12 +75,18 @@ func Convert(data []byte, opts Options) (*Result, error) {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("skipping %s: %s is not supported yet", r.Address, r.Type))
 			continue
 		}
-		id := logicalID(r.Type, r.Name)
+		id := resourceLogicalID(r)
 		if prev, dup := seen[id]; dup {
-			res.Warnings = append(res.Warnings, fmt.Sprintf("logical ID %q for %s collides with %s; the earlier resource is overwritten", id, r.Address, prev))
+			return nil, fmt.Errorf("logical ID %q for %s collides with %s", id, r.Address, prev)
 		}
 		seen[id] = r.Address
 		cfnType, props := conv(r, p.configFor(r.Address))
+		restorePolicyReferences(props, p.PlannedValues.RootModule.Resources)
+		if r.Type == "aws_cloudfront_distribution" {
+			if err := resolveDistributionSecurity(p, r, props, opts.References[r.Address]); err != nil {
+				return nil, err
+			}
+		}
 		resources.set(id, resourceNode(cfnType, props))
 		count++
 	}

@@ -47,8 +47,9 @@ func convertDistribution(r plannedResource, cfg map[string]any) (string, *yaml.N
 
 	orderedCfg := blocks(cfg, "ordered_cache_behavior")
 	var behaviors []*yaml.Node
-	for _, b := range blocks(v, "ordered_cache_behavior") {
-		bc := matchConfigBlock(orderedCfg, "path_pattern", str(b, "path_pattern"))
+	plannedBehaviors := blocks(v, "ordered_cache_behavior")
+	for index, b := range plannedBehaviors {
+		bc := matchBehaviorConfig(orderedCfg, plannedBehaviors, index)
 		behaviors = append(behaviors, cacheBehaviorNode(b, bc, true))
 	}
 	dc.set("CacheBehaviors", sequence(behaviors...))
@@ -245,6 +246,19 @@ func lambdaAssociations(b map[string]any) *yaml.Node {
 }
 
 func trustedKeyGroups(b, bc map[string]any) *yaml.Node {
+	// Known values, including an explicitly empty list, are authoritative.
+	if values, ok := b["trusted_key_groups"].([]any); ok {
+		known := true
+		for _, value := range values {
+			if _, ok := value.(string); !ok {
+				known = false
+				break
+			}
+		}
+		if known {
+			return stringSeq(strList(b, "trusted_key_groups"))
+		}
+	}
 	if node, ok := bc["trusted_key_groups"].(map[string]any); ok {
 		if refs, ok := node["references"].([]any); ok {
 			var nodes []*yaml.Node
