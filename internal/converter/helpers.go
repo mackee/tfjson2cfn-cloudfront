@@ -67,3 +67,19 @@ func distinctCloudFrontRefs(refs []any) []*reference {
 	}
 	return out
 }
+
+// A single represented static block must correspond to the single planned
+// block, even when its identifying expression is a variable/local. Never use
+// positional matching when dynamic blocks or multiple behaviors are possible.
+func matchBehaviorConfig(cfg, planned []map[string]any, index int) map[string]any {
+	if index >= len(planned) {
+		return nil
+	}
+	if match := matchConfigBlock(cfg, "path_pattern", str(planned[index], "path_pattern")); match != nil {
+		return match
+	}
+	if len(cfg) == 1 && len(planned) == 1 && configConst(cfg[0], "path_pattern") == nil {
+		return cfg[0]
+	}
+	return nil
+}

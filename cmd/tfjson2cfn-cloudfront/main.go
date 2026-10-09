@@ -5,6 +5,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -18,11 +19,12 @@ import (
 var version = "dev"
 
 type cli struct {
-	Input    string           `kong:"name='input',short='i',default='-',help='Path to terraform show -json output (- for stdin).'"`
-	Output   string           `kong:"name='output',short='o',default='-',help='Path to write the CloudFormation template (- for stdout).'"`
-	Format   string           `kong:"name='format',default='yaml',enum='yaml,json',help='Output format: yaml or json.'"`
-	LogLevel string           `kong:"name='log-level',default='info',enum='debug,info,warn,error',help='Log verbosity (to stderr).'"`
-	Version  kong.VersionFlag `kong:"name='version',help='Print version and exit.'"`
+	References string           `kong:"name='references',help='Path to JSON reference hints for unknown distribution security fields.'"`
+	Input      string           `kong:"name='input',short='i',default='-',help='Path to terraform show -json output (- for stdin).'"`
+	Output     string           `kong:"name='output',short='o',default='-',help='Path to write the CloudFormation template (- for stdout).'"`
+	Format     string           `kong:"name='format',default='yaml',enum='yaml,json',help='Output format: yaml or json.'"`
+	LogLevel   string           `kong:"name='log-level',default='info',enum='debug,info,warn,error',help='Log verbosity (to stderr).'"`
+	Version    kong.VersionFlag `kong:"name='version',help='Print version and exit.'"`
 }
 
 func main() {
@@ -46,7 +48,17 @@ func run(c cli) error {
 		return err
 	}
 
-	res, err := converter.Convert(data, converter.Options{Format: c.Format})
+	var references map[string]map[string][]string
+	if c.References != "" {
+		raw, err := os.ReadFile(c.References)
+		if err != nil {
+			return fmt.Errorf("read references: %w", err)
+		}
+		if err := json.Unmarshal(raw, &references); err != nil {
+			return fmt.Errorf("parse references: %w", err)
+		}
+	}
+	res, err := converter.Convert(data, converter.Options{Format: c.Format, References: references})
 	if err != nil {
 		return err
 	}
