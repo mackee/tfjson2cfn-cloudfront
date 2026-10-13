@@ -1,6 +1,10 @@
 package converter
 
 import (
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -19,25 +23,57 @@ type reference struct {
 // ("aws_cloudfront_function.router.arn") and the bare resource
 // ("aws_cloudfront_function.router"); we want the former.
 func parseReference(refs []any) *reference {
-	var best *reference
-	for _, r := range refs {
-		s, ok := r.(string)
+	for _, raw := range refs {
+		s, ok := raw.(string)
 		if !ok {
 			continue
 		}
-		parts := strings.Split(s, ".")
-		if len(parts) < 3 || !strings.HasPrefix(parts[0], "aws_cloudfront_") {
-			continue
+		if ref := parseCloudFrontReference(s); ref != nil && ref.attr != "" {
+			return ref
 		}
-		// parts: [type, name, attr...]; attr is the remainder joined.
-		best = &reference{
-			resourceType: parts[0],
-			name:         parts[1],
-			attr:         strings.Join(parts[2:], "."),
-		}
-		break
 	}
-	return best
+	return nil
+}
+
+// parseCloudFrontReference also accepts a bare resource address so scalar and
+// list references share the same quoted-index parsing. A bare address has no
+// attribute; it is a dependency, not evidence of an attribute selection.
+func parseCloudFrontReference(s string) *reference {
+	resourceType, rest, ok := strings.Cut(s, ".")
+	if !ok || !strings.HasPrefix(resourceType, "aws_cloudfront_") || rest == "" {
+		return nil
+	}
+	end := strings.IndexByte(rest, '.')
+	if bracket := strings.IndexByte(rest, '['); bracket >= 0 && (end < 0 || bracket < end) {
+		decoder := json.NewDecoder(strings.NewReader(rest[bracket+1:]))
+		var index any
+		if decoder.Decode(&index) != nil {
+			return nil
+		}
+		switch index.(type) {
+		case string, float64:
+		default:
+			return nil
+		}
+		close := bracket + 1 + int(decoder.InputOffset())
+		if bracket == 0 || close >= len(rest) || rest[close] != ']' {
+			return nil
+		}
+		end = close + 1
+		if end == len(rest) {
+			return &reference{resourceType: resourceType, name: rest}
+		}
+		if rest[end] != '.' {
+			return nil
+		}
+	}
+	if end < 0 {
+		return &reference{resourceType: resourceType, name: rest}
+	}
+	if end < 1 || end+1 >= len(rest) {
+		return nil
+	}
+	return &reference{resourceType: resourceType, name: rest[:end], attr: rest[end+1:]}
 }
 
 // refFromExpr returns the reference configured for field within a configuration
@@ -99,7 +135,91 @@ func (r *reference) resolve() *yaml.Node {
 // that share the same local name (e.g. an origin access control, a key group
 // and a public key all named "tools" would otherwise collide).
 func logicalID(resourceType, name string) string {
-	return pascalCase(resourceType + "_" + name)
+	base, index, indexed := strings.Cut(name, "[")
+	if !indexed {
+		return pascalCase(resourceType + "_" + name)
+	}
+	index = strings.TrimSuffix(index, "]")
+	var value any
+	if err := json.Unmarshal([]byte(index), &value); err == nil {
+		switch value := value.(type) {
+		case string:
+			if value != "" && asciiAlphanumeric(value) {
+				return pascalCase(resourceType+"_"+base) + "Key" + value
+			}
+		case float64:
+			if value >= 0 && value == float64(int64(value)) {
+				return pascalCase(resourceType+"_"+base) + "Index" + strconv.FormatInt(int64(value), 10)
+			}
+		}
+	}
+	// Arbitrary for_each keys still need stable, alphanumeric logical IDs.
+	digest := sha256.Sum256([]byte(index))
+	return pascalCase(resourceType+"_"+base) + fmt.Sprintf("Hash%x", digest[:8])
+}
+
+func asciiAlphanumeric(s string) bool {
+	for _, c := range []byte(s) {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func resourceLogicalID(r plannedResource) string {
+	name := r.Name
+	if strings.HasPrefix(r.Address, r.Type+"."+r.Name+"[") {
+		name = strings.TrimPrefix(r.Address, r.Type+".")
+	}
+	return logicalID(r.Type, name)
+}
+
+// A local/each expression may hide a resource reference in configuration.
+// Restore known IDs only when the expected resource type matches uniquely.
+// External and ambiguous IDs remain literal values.
+func restorePolicyReferences(n *yaml.Node, resources []plannedResource) {
+	if n == nil {
+		return
+	}
+	policyTypes := map[string]string{"CachePolicyId": "aws_cloudfront_cache_policy", "OriginRequestPolicyId": "aws_cloudfront_origin_request_policy", "ResponseHeadersPolicyId": "aws_cloudfront_response_headers_policy", "OriginAccessControlId": "aws_cloudfront_origin_access_control"}
+	if n.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			value := n.Content[i+1]
+			if n.Content[i].Value == "TrustedKeyGroups" && value.Kind == yaml.SequenceNode {
+				for j, item := range value.Content {
+					value.Content[j] = restoreIDReference(item, resources, "aws_cloudfront_key_group")
+				}
+			}
+			if typ, ok := policyTypes[n.Content[i].Value]; ok && value.Kind == yaml.ScalarNode && value.Tag == "!!str" {
+				n.Content[i+1] = restoreIDReference(value, resources, typ)
+			}
+		}
+	}
+	for _, child := range n.Content {
+		restorePolicyReferences(child, resources)
+	}
+}
+
+// restoreIDReference replaces only a nonempty, uniquely matched managed ID.
+func restoreIDReference(value *yaml.Node, resources []plannedResource, typ string) *yaml.Node {
+	if value.Kind != yaml.ScalarNode || value.Tag != "!!str" || value.Value == "" {
+		return value
+	}
+	var match *plannedResource
+	for i := range resources {
+		r := &resources[i]
+		if r.Mode == "managed" && r.Type == typ && str(r.Values, "id") == value.Value {
+			if match != nil {
+				return value
+			}
+			match = r
+		}
+	}
+	if match != nil {
+		return refNode(resourceLogicalID(*match))
+	}
+	return value
 }
 
 // pascalCase PascalCases an identifier on underscores: "spa_distribution" ->

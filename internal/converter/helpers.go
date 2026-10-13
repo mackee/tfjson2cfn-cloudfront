@@ -40,30 +40,57 @@ func matchConfigBlock(list []map[string]any, keyField, keyVal string) map[string
 // reference per distinct CloudFront resource, preferring the entry that carries
 // an attribute (e.g. ".arn") over the bare resource address.
 func distinctCloudFrontRefs(refs []any) []*reference {
-	byName := map[string]*reference{}
+	byAddress := map[string]*reference{}
 	var order []string
-	for _, r := range refs {
-		s, ok := r.(string)
+	collections := map[string]bool{}
+	for _, raw := range refs {
+		s, ok := raw.(string)
 		if !ok {
 			continue
 		}
-		parts := strings.Split(s, ".")
-		if len(parts) < 2 || !strings.HasPrefix(parts[0], "aws_cloudfront_") {
+		ref := parseCloudFrontReference(s)
+		if ref == nil {
 			continue
 		}
-		name := parts[1]
-		if _, seen := byName[name]; !seen {
-			order = append(order, name)
+		address := ref.resourceType + "." + ref.name
+		if _, seen := byAddress[address]; !seen {
+			order = append(order, address)
 		}
-		if len(parts) >= 3 {
-			byName[name] = &reference{resourceType: parts[0], name: name, attr: strings.Join(parts[2:], ".")}
-		} else if byName[name] == nil {
-			byName[name] = &reference{resourceType: parts[0], name: name, attr: "arn"}
+		if previous := byAddress[address]; previous == nil || (previous.attr == "" && ref.attr != "") {
+			byAddress[address] = ref
+		}
+		if base, _, indexed := strings.Cut(ref.name, "["); indexed {
+			collections[ref.resourceType+"."+base] = true
 		}
 	}
 	out := make([]*reference, 0, len(order))
-	for _, n := range order {
-		out = append(out, byName[n])
+	for _, address := range order {
+		ref := byAddress[address]
+		// Terraform includes the collection dependency alongside an indexed
+		// reference. It must not become a separate, nonexistent resource Ref.
+		if ref.attr == "" && collections[address] {
+			continue
+		}
+		if ref.attr == "" {
+			ref.attr = "arn"
+		}
+		out = append(out, ref)
 	}
 	return out
+}
+
+// A single represented static block must correspond to the single planned
+// block, even when its identifying expression is a variable/local. Never use
+// positional matching when dynamic blocks or multiple behaviors are possible.
+func matchBehaviorConfig(cfg, planned []map[string]any, index int) map[string]any {
+	if index >= len(planned) {
+		return nil
+	}
+	if match := matchConfigBlock(cfg, "path_pattern", str(planned[index], "path_pattern")); match != nil {
+		return match
+	}
+	if len(cfg) == 1 && len(planned) == 1 && configConst(cfg[0], "path_pattern") == nil {
+		return cfg[0]
+	}
+	return nil
 }

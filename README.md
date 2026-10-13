@@ -2,7 +2,7 @@
 
 **Convert a Terraform plan into a CloudFront-only CloudFormation template — the Terraform on-ramp for [localfront](https://github.com/mackee/localfront).**
 
-`tfjson2cfn-cloudfront` reads the JSON that `terraform show -json` emits for a plan and writes a CloudFormation template containing just the `AWS::CloudFront::*` resources. Because Terraform has already resolved every HCL expression — variables, functions, `for_each`, data sources, module wiring — the converter never interprets HCL itself: it reshapes already-known values into CloudFormation's schema and restores cross-resource links as `Ref` / `Fn::GetAtt`. The resulting template is what you feed to localfront, so Terraform users get the same instant local CloudFront emulation that CloudFormation and CDK users already have.
+`tfjson2cfn-cloudfront` reads the JSON that `terraform show -json` emits for a plan and writes a CloudFormation template containing just the `AWS::CloudFront::*` resources. Terraform resolves known values in the plan, while apply-time values can remain unknown. The converter never interprets HCL itself: it reshapes known values into CloudFormation's schema and restores cross-resource links as `Ref` / `Fn::GetAtt` where sufficient reference information is available. The resulting template is what you feed to localfront, so Terraform users get the same instant local CloudFront emulation that CloudFormation and CDK users already have.
 
 > **Status: Proof of Concept.** This README defines the intended scope and CLI. Behavior, flags, and output may change without notice.
 
@@ -12,7 +12,7 @@ localfront is driven entirely by CloudFormation templates — it has no manageme
 
 A general-purpose Terraform→CloudFormation converter is intractable: it would have to re-implement HCL evaluation, every provider schema, and the entire resource catalog. Two constraints make *this* one tractable:
 
-1. **Consume the plan, not the HCL.** `terraform show -json <planfile>` is fully resolved JSON. Variables, `for_each`, `locals`, data sources, and interpolation are already collapsed to concrete values by Terraform itself.
+1. **Consume the plan, not the HCL.** `terraform show -json <planfile>` contains known values and metadata for apply-time unknowns. Variables, `for_each`, `locals`, data sources, and interpolation are evaluated by Terraform itself; not every resulting attribute is known before apply.
 2. **Scope to CloudFront.** Only `aws_cloudfront_*` resources are translated — exactly the resource types localfront understands. Everything else in the plan is ignored.
 
 What's left is a focused schema translation plus reference resolution.
@@ -58,6 +58,7 @@ $ tfjson2cfn-cloudfront --input plan.json --output template.yaml --format yaml
 | --- | --- | --- |
 | `-i, --input` | `-` (stdin) | Path to `terraform show -json` output |
 | `-o, --output` | `-` (stdout) | Path to write the CloudFormation template |
+| `--references` | none | JSON file with explicit references for unknown distribution security fields |
 | `--format` | `yaml` | Output format: `yaml` or `json` |
 | `--log-level` | `info` | `debug\|info\|warn\|error` (written to stderr) |
 
@@ -104,12 +105,41 @@ Inside a plan, an attribute that points at another resource — e.g. `cache_poli
 
 Managed policy IDs (`Managed-CachingOptimized`, …) and other literal values are passed through unchanged — localfront resolves those itself.
 
-Logical IDs are derived deterministically from the Terraform resource's full address — the resource type and local name PascalCased on underscores (`aws_cloudfront_distribution.assets` → `AwsCloudfrontDistributionAssets`, `aws_cloudfront_cache_policy.long_cache` → `AwsCloudfrontCachePolicyLongCache`), so the output is stable across runs. Because the type is part of the ID, resources of different kinds that share a local name (e.g. an origin access control, a key group and a public key all named `tools`) each get a distinct logical ID instead of colliding.
+Known policy, key group, and origin access control IDs are restored to references only when exactly one managed resource of the expected type has the same nonempty ID. External or ambiguous IDs remain literal. Known trusted key group lists, including empty lists, take precedence over configuration dependencies.
+
+### Unknown security references
+
+Terraform's [JSON format](https://developer.hashicorp.com/terraform/internals/json-format#expression-representation) omits expressions inside `dynamic` blocks. Its `references` arrays describe dependencies rather than complete expressions: a collection reference and `each.key` do not prove which resource instance was selected. The converter does not guess instance relationships or copy a default behavior's policy to ordered behaviors.
+
+Unresolved unknown cache policy, origin request policy, response headers policy, trusted key group, and origin access control references cause conversion to fail before writing a template. An omitted optional `trusted_key_groups` field in a represented static configuration block is treated as unconfigured even if the provider marks its default as unknown. Absent dynamic block expressions do not establish that exception.
+
+To resolve missing information, supply an explicit JSON file:
+
+```json
+{
+  "aws_cloudfront_distribution.sites[\"alpha\"]": {
+    "default_cache_behavior[0].response_headers_policy_id": [
+      "aws_cloudfront_response_headers_policy.headers[\"alpha\"]"
+    ],
+    "ordered_cache_behavior[0].response_headers_policy_id": [
+      "aws_cloudfront_response_headers_policy.headers[\"alpha\"]"
+    ]
+  }
+}
+```
+
+```console
+$ tfjson2cfn-cloudfront -i plan.json --references references.json -o template.yaml
+```
+
+Keys are exact root distribution addresses, then Terraform attribute paths. Block indexes refer to the order in `planned_values` (`default_cache_behavior[0]`, `ordered_cache_behavior[N]`, or `origin[N]`). Each scalar field requires one exact managed resource address of the appropriate type; `trusted_key_groups` accepts a complete nonempty list of key group addresses. Hints only apply to unknown fields; missing resources, wrong types, duplicate targets, unknown distributions, and unused paths are errors. Known empty signer lists cannot be overridden. The caller owns the correctness of these explicit relationships and must regenerate or review hints when block order changes.
+
+Logical IDs are derived deterministically from the Terraform resource's full address — the resource type and local name PascalCased on underscores (`aws_cloudfront_distribution.assets` → `AwsCloudfrontDistributionAssets`, `aws_cloudfront_cache_policy.long_cache` → `AwsCloudfrontCachePolicyLongCache`), so the output is stable across runs. Alphanumeric string instance keys use a `Key` marker followed by their original case; other string keys use a `Hash` suffix. Numeric indexes use `Index`, keeping string and numeric instance keys distinct. Because the type is part of the ID, resources of different kinds that share a local name (e.g. an origin access control, a key group and a public key all named `tools`) each get a distinct logical ID instead of colliding.
 
 ## Not supported / out of scope
 
 - **Non-CloudFront resources** — only `aws_cloudfront_*` is translated, by design.
-- **HCL evaluation** — the converter reads resolved plan JSON; it never parses `.tf` files. If a value can't be resolved by `terraform plan` (e.g. it depends on the apply-time output of a non-CloudFront resource), it stays unknown and that property is omitted with a warning.
+- **HCL evaluation** — the converter reads resolved plan JSON; it never parses `.tf` files. Unknown distribution security references fail conversion unless they can be restored or explicitly supplied through `--references`. Other unknown properties may still be omitted; conversion does not evaluate HCL or promise completeness for every unknown field.
 - **Round-tripping back to AWS** — output is one-way, intended for localfront, not for `aws cloudformation deploy`.
 - **Property-level fidelity for what localfront ignores** — properties are still translated when present, but see localfront's *Accepted but ignored* / *Not implemented* lists for what actually takes effect at serve time.
 

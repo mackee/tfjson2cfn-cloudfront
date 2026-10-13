@@ -11,7 +11,13 @@ import (
 // recover cross-resource references (which are "known after apply" and so are
 // absent from planned_values).
 type plan struct {
-	FormatVersion string `json:"format_version"`
+	FormatVersion   string `json:"format_version"`
+	ResourceChanges []struct {
+		Address string `json:"address"`
+		Change  struct {
+			AfterUnknown map[string]any `json:"after_unknown"`
+		} `json:"change"`
+	} `json:"resource_changes"`
 	PlannedValues struct {
 		RootModule module `json:"root_module"`
 	} `json:"planned_values"`

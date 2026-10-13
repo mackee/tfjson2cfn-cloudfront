@@ -1,0 +1,400 @@
+{
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_response_headers_policy.headers[\"alpha\"]",
+          "mode": "managed",
+          "type": "aws_cloudfront_response_headers_policy",
+          "name": "headers",
+          "values": {
+            "name": "alpha-headers",
+            "security_headers_config": [
+              {
+                "content_security_policy": [
+                  {
+                    "content_security_policy": "frame-ancestors 'self'",
+                    "override": true
+                  }
+                ]
+              }
+            ]
+          },
+          "index": "alpha"
+        },
+        {
+          "address": "aws_cloudfront_distribution.sites[\"alpha\"]",
+          "mode": "managed",
+          "type": "aws_cloudfront_distribution",
+          "name": "sites",
+          "values": {
+            "enabled": true,
+            "default_cache_behavior": [
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [
+                  "signing-id"
+                ]
+              }
+            ],
+            "ordered_cache_behavior": [
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [
+                  "signing-id"
+                ],
+                "path_pattern": "/api/*"
+              },
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [],
+                "path_pattern": "/session/start"
+              },
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [],
+                "path_pattern": "/session/callback"
+              },
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [],
+                "path_pattern": "/session/bootstrap"
+              },
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [],
+                "path_pattern": "/session/refresh"
+              }
+            ],
+            "origin": [
+              {
+                "origin_id": "storage",
+                "domain_name": "storage.example.test",
+                "origin_access_control_id": "storage-id"
+              }
+            ]
+          },
+          "index": "alpha"
+        },
+        {
+          "address": "aws_cloudfront_response_headers_policy.headers[\"beta\"]",
+          "mode": "managed",
+          "type": "aws_cloudfront_response_headers_policy",
+          "name": "headers",
+          "values": {
+            "name": "beta-headers",
+            "security_headers_config": [
+              {
+                "content_security_policy": [
+                  {
+                    "content_security_policy": "frame-ancestors 'self'",
+                    "override": true
+                  }
+                ]
+              }
+            ]
+          },
+          "index": "beta"
+        },
+        {
+          "address": "aws_cloudfront_distribution.sites[\"beta\"]",
+          "mode": "managed",
+          "type": "aws_cloudfront_distribution",
+          "name": "sites",
+          "values": {
+            "enabled": true,
+            "default_cache_behavior": [
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [
+                  "signing-id"
+                ]
+              }
+            ],
+            "ordered_cache_behavior": [
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [
+                  "signing-id"
+                ],
+                "path_pattern": "/api/*"
+              },
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [],
+                "path_pattern": "/session/start"
+              },
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [],
+                "path_pattern": "/session/callback"
+              },
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [],
+                "path_pattern": "/session/bootstrap"
+              },
+              {
+                "target_origin_id": "storage",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "trusted_key_groups": [],
+                "path_pattern": "/session/refresh"
+              }
+            ],
+            "origin": [
+              {
+                "origin_id": "storage",
+                "domain_name": "storage.example.test",
+                "origin_access_control_id": "storage-id"
+              }
+            ]
+          },
+          "index": "beta"
+        },
+        {
+          "address": "aws_cloudfront_key_group.signers",
+          "mode": "managed",
+          "type": "aws_cloudfront_key_group",
+          "name": "signers",
+          "values": {
+            "id": "signing-id",
+            "name": "signers",
+            "items": [
+              "external-public-key"
+            ]
+          }
+        },
+        {
+          "address": "aws_cloudfront_origin_access_control.storage",
+          "mode": "managed",
+          "type": "aws_cloudfront_origin_access_control",
+          "name": "storage",
+          "values": {
+            "id": "storage-id",
+            "name": "storage",
+            "origin_access_control_origin_type": "s3",
+            "signing_behavior": "always",
+            "signing_protocol": "sigv4"
+          }
+        }
+      ]
+    }
+  },
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_distribution.sites",
+          "type": "aws_cloudfront_distribution",
+          "name": "sites",
+          "expressions": {
+            "default_cache_behavior": [
+              {
+                "trusted_key_groups": {
+                  "references": [
+                    "local.default_behavior.trusted_key_groups",
+                    "local.default_behavior"
+                  ]
+                },
+                "response_headers_policy_id": {
+                  "references": [
+                    "aws_cloudfront_response_headers_policy.headers",
+                    "each.key"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_cloudfront_distribution.sites[\"alpha\"]",
+      "change": {
+        "after_unknown": {
+          "default_cache_behavior": [
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": [
+                false
+              ]
+            }
+          ],
+          "ordered_cache_behavior": [
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": [
+                false
+              ]
+            },
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": []
+            },
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": []
+            },
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": []
+            },
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "address": "aws_cloudfront_distribution.sites[\"beta\"]",
+      "change": {
+        "after_unknown": {
+          "default_cache_behavior": [
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": [
+                false
+              ]
+            }
+          ],
+          "ordered_cache_behavior": [
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": [
+                false
+              ]
+            },
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": []
+            },
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": []
+            },
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": []
+            },
+            {
+              "response_headers_policy_id": true,
+              "trusted_key_groups": []
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

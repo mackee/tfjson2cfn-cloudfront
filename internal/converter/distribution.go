@@ -47,8 +47,9 @@ func convertDistribution(r plannedResource, cfg map[string]any) (string, *yaml.N
 
 	orderedCfg := blocks(cfg, "ordered_cache_behavior")
 	var behaviors []*yaml.Node
-	for _, b := range blocks(v, "ordered_cache_behavior") {
-		bc := matchConfigBlock(orderedCfg, "path_pattern", str(b, "path_pattern"))
+	plannedBehaviors := blocks(v, "ordered_cache_behavior")
+	for index, b := range plannedBehaviors {
+		bc := matchBehaviorConfig(orderedCfg, plannedBehaviors, index)
 		behaviors = append(behaviors, cacheBehaviorNode(b, bc, true))
 	}
 	dc.set("CacheBehaviors", sequence(behaviors...))
@@ -87,11 +88,11 @@ func originNode(o, oc map[string]any) *yaml.Node {
 		m.set("OriginPath", scalar(p))
 	}
 	hasOAC := false
-	if ref := refFromExpr(oc, "origin_access_control_id"); ref != nil {
-		m.set("OriginAccessControlId", ref.resolve())
-		hasOAC = true
-	} else if s := str(o, "origin_access_control_id"); s != "" {
+	if s := str(o, "origin_access_control_id"); s != "" {
 		m.set("OriginAccessControlId", scalar(s))
+		hasOAC = true
+	} else if ref := refFromExpr(oc, "origin_access_control_id"); ref != nil {
+		m.set("OriginAccessControlId", ref.resolve())
 		hasOAC = true
 	}
 
@@ -194,11 +195,11 @@ func cacheBehaviorNode(b, bc map[string]any, ordered bool) *yaml.Node {
 // policyField resolves a *_policy_id attribute to a Ref when it points at a
 // managed policy resource in the plan, otherwise emits the literal id.
 func policyField(b, bc map[string]any, field string) *yaml.Node {
-	if ref := refFromExpr(bc, field); ref != nil {
-		return ref.resolve()
-	}
 	if s := str(b, field); s != "" {
 		return scalar(s)
+	}
+	if ref := refFromExpr(bc, field); ref != nil {
+		return ref.resolve()
 	}
 	return nil
 }
@@ -245,6 +246,19 @@ func lambdaAssociations(b map[string]any) *yaml.Node {
 }
 
 func trustedKeyGroups(b, bc map[string]any) *yaml.Node {
+	// Known values, including an explicitly empty list, are authoritative.
+	if values, ok := b["trusted_key_groups"].([]any); ok {
+		known := true
+		for _, value := range values {
+			if _, ok := value.(string); !ok {
+				known = false
+				break
+			}
+		}
+		if known {
+			return stringSeq(strList(b, "trusted_key_groups"))
+		}
+	}
 	if node, ok := bc["trusted_key_groups"].(map[string]any); ok {
 		if refs, ok := node["references"].([]any); ok {
 			var nodes []*yaml.Node

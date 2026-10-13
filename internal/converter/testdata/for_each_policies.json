@@ -1,0 +1,150 @@
+{
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_response_headers_policy.tools_dev",
+          "mode": "managed",
+          "type": "aws_cloudfront_response_headers_policy",
+          "name": "tools_dev",
+          "values": {
+            "id": "policy-dev",
+            "name": "tools-dev",
+            "security_headers_config": [
+              {
+                "content_security_policy": [
+                  {
+                    "content_security_policy": "frame-ancestors 'self' https://dev.example.test",
+                    "override": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "address": "aws_cloudfront_distribution.guest[\"dev\"]",
+          "mode": "managed",
+          "type": "aws_cloudfront_distribution",
+          "name": "guest",
+          "values": {
+            "aliases": [
+              "*.guest.tools.dev.example.test"
+            ],
+            "enabled": true,
+            "default_cache_behavior": [
+              {
+                "target_origin_id": "backend",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "response_headers_policy_id": "policy-dev"
+              }
+            ],
+            "origin": [
+              {
+                "origin_id": "backend",
+                "domain_name": "backend.example.test",
+                "custom_origin_config": [
+                  {
+                    "http_port": 80,
+                    "https_port": 443,
+                    "origin_protocol_policy": "https-only"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "address": "aws_cloudfront_response_headers_policy.tools_prod",
+          "mode": "managed",
+          "type": "aws_cloudfront_response_headers_policy",
+          "name": "tools_prod",
+          "values": {
+            "id": "policy-prod",
+            "name": "tools-prod",
+            "security_headers_config": [
+              {
+                "content_security_policy": [
+                  {
+                    "content_security_policy": "frame-ancestors 'self' https://example.test",
+                    "override": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "address": "aws_cloudfront_distribution.guest[\"prod\"]",
+          "mode": "managed",
+          "type": "aws_cloudfront_distribution",
+          "name": "guest",
+          "values": {
+            "aliases": [
+              "*.guest.tools.example.test"
+            ],
+            "enabled": true,
+            "default_cache_behavior": [
+              {
+                "target_origin_id": "backend",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "response_headers_policy_id": "policy-prod"
+              }
+            ],
+            "origin": [
+              {
+                "origin_id": "backend",
+                "domain_name": "backend.example.test",
+                "custom_origin_config": [
+                  {
+                    "http_port": 80,
+                    "https_port": 443,
+                    "origin_protocol_policy": "https-only"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_distribution.guest",
+          "type": "aws_cloudfront_distribution",
+          "name": "guest",
+          "expressions": {
+            "default_cache_behavior": [
+              {
+                "response_headers_policy_id": {
+                  "references": [
+                    "each.value.headers_policy_id",
+                    "each.value"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
