@@ -88,11 +88,11 @@ func originNode(o, oc map[string]any) *yaml.Node {
 		m.set("OriginPath", scalar(p))
 	}
 	hasOAC := false
-	if ref := refFromExpr(oc, "origin_access_control_id"); ref != nil {
-		m.set("OriginAccessControlId", ref.resolve())
-		hasOAC = true
-	} else if s := str(o, "origin_access_control_id"); s != "" {
+	if s := str(o, "origin_access_control_id"); s != "" {
 		m.set("OriginAccessControlId", scalar(s))
+		hasOAC = true
+	} else if ref := refFromExpr(oc, "origin_access_control_id"); ref != nil {
+		m.set("OriginAccessControlId", ref.resolve())
 		hasOAC = true
 	}
 
@@ -195,11 +195,11 @@ func cacheBehaviorNode(b, bc map[string]any, ordered bool) *yaml.Node {
 // policyField resolves a *_policy_id attribute to a Ref when it points at a
 // managed policy resource in the plan, otherwise emits the literal id.
 func policyField(b, bc map[string]any, field string) *yaml.Node {
-	if ref := refFromExpr(bc, field); ref != nil {
-		return ref.resolve()
-	}
 	if s := str(b, field); s != "" {
 		return scalar(s)
+	}
+	if ref := refFromExpr(bc, field); ref != nil {
+		return ref.resolve()
 	}
 	return nil
 }

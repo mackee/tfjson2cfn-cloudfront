@@ -23,42 +23,57 @@ type reference struct {
 // ("aws_cloudfront_function.router.arn") and the bare resource
 // ("aws_cloudfront_function.router"); we want the former.
 func parseReference(refs []any) *reference {
-	var best *reference
-	for _, r := range refs {
-		s, ok := r.(string)
+	for _, raw := range refs {
+		s, ok := raw.(string)
 		if !ok {
 			continue
 		}
-		resourceType, rest, ok := strings.Cut(s, ".")
-		if !ok || !strings.HasPrefix(resourceType, "aws_cloudfront_") {
-			continue
+		if ref := parseCloudFrontReference(s); ref != nil && ref.attr != "" {
+			return ref
 		}
-		end := strings.IndexByte(rest, '.')
-		if bracket := strings.IndexByte(rest, '['); bracket >= 0 && (end < 0 || bracket < end) {
-			// Decode only the resource's JSON index. Attribute paths may contain
-			// their own indexes; quoted keys may contain dots, brackets or escapes.
-			decoder := json.NewDecoder(strings.NewReader(rest[bracket+1:]))
-			var index any
-			if decoder.Decode(&index) != nil {
-				continue
-			}
-			close := bracket + 1 + int(decoder.InputOffset())
-			if close+1 >= len(rest) || rest[close] != ']' || rest[close+1] != '.' {
-				continue
-			}
-			end = close + 1
-		}
-		if end < 1 || end+1 >= len(rest) {
-			continue
-		}
-		best = &reference{
-			resourceType: resourceType,
-			name:         rest[:end],
-			attr:         rest[end+1:],
-		}
-		break
 	}
-	return best
+	return nil
+}
+
+// parseCloudFrontReference also accepts a bare resource address so scalar and
+// list references share the same quoted-index parsing. A bare address has no
+// attribute; it is a dependency, not evidence of an attribute selection.
+func parseCloudFrontReference(s string) *reference {
+	resourceType, rest, ok := strings.Cut(s, ".")
+	if !ok || !strings.HasPrefix(resourceType, "aws_cloudfront_") || rest == "" {
+		return nil
+	}
+	end := strings.IndexByte(rest, '.')
+	if bracket := strings.IndexByte(rest, '['); bracket >= 0 && (end < 0 || bracket < end) {
+		decoder := json.NewDecoder(strings.NewReader(rest[bracket+1:]))
+		var index any
+		if decoder.Decode(&index) != nil {
+			return nil
+		}
+		switch index.(type) {
+		case string, float64:
+		default:
+			return nil
+		}
+		close := bracket + 1 + int(decoder.InputOffset())
+		if bracket == 0 || close >= len(rest) || rest[close] != ']' {
+			return nil
+		}
+		end = close + 1
+		if end == len(rest) {
+			return &reference{resourceType: resourceType, name: rest}
+		}
+		if rest[end] != '.' {
+			return nil
+		}
+	}
+	if end < 0 {
+		return &reference{resourceType: resourceType, name: rest}
+	}
+	if end < 1 || end+1 >= len(rest) {
+		return nil
+	}
+	return &reference{resourceType: resourceType, name: rest[:end], attr: rest[end+1:]}
 }
 
 // refFromExpr returns the reference configured for field within a configuration

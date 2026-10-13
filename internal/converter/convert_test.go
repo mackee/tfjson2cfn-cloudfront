@@ -181,6 +181,7 @@ func TestS3OriginConfigSynthesizedForModernOAC(t *testing.T) {
           "type": "aws_cloudfront_origin_access_control",
           "name": "assets",
           "values": {
+            "id": "E1ABCDEFGHIJKL",
             "name": "assets",
             "origin_access_control_origin_type": "s3",
             "signing_behavior": "always",
