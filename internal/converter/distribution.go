@@ -105,9 +105,6 @@ func convertDistribution(r plannedResource, cfg map[string]any, refs *conversion
 }
 
 func unknownBehavior(refs *conversionContext, block string, index int) map[string]any {
-	if refs == nil {
-		return nil
-	}
 	list, _ := refs.unknown[block].([]any)
 	if index >= len(list) {
 		return nil

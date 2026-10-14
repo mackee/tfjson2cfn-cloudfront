@@ -574,3 +574,18 @@ func TestFunctionARNDecisionTable(t *testing.T) {
 		})
 	}
 }
+
+func TestDeposedChangeDoesNotSupplyUnknownMarkers(t *testing.T) {
+	data := modifiedFunctionFixture(t, func(plan map[string]any) {
+		changes := plan["resource_changes"].([]any)
+		deposed := map[string]any{
+			"address": distributionAddress,
+			"deposed": "00000001",
+			"change":  map[string]any{"after_unknown": map[string]any{}},
+		}
+		plan["resource_changes"] = append([]any{deposed}, changes...)
+	})
+	if _, err := Convert(data, Options{References: functionHints()}); err != nil {
+		t.Fatalf("deposed change replaced the planned unknown markers: %v", err)
+	}
+}

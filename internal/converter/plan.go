@@ -14,6 +14,7 @@ type plan struct {
 	FormatVersion   string `json:"format_version"`
 	ResourceChanges []struct {
 		Address string `json:"address"`
+		Deposed string `json:"deposed"`
 		Change  struct {
 			AfterUnknown map[string]any `json:"after_unknown"`
 		} `json:"change"`
@@ -82,10 +83,15 @@ func (p *plan) configFor(address string) map[string]any {
 }
 
 // afterUnknownByAddress indexes each resource change's after_unknown markers
-// by address, so per-resource lookups do not rescan resource_changes.
+// by address, so per-resource lookups do not rescan resource_changes. Deposed
+// objects share the address but describe a leftover instance being destroyed,
+// not the planned one.
 func (p *plan) afterUnknownByAddress() map[string]map[string]any {
 	unknown := make(map[string]map[string]any, len(p.ResourceChanges))
 	for _, change := range p.ResourceChanges {
+		if change.Deposed != "" {
+			continue
+		}
 		if _, exists := unknown[change.Address]; !exists {
 			unknown[change.Address] = change.Change.AfterUnknown
 		}
