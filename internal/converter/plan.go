@@ -81,6 +81,15 @@ func (p *plan) configFor(address string) map[string]any {
 	return nil
 }
 
+func (p *plan) unknownFor(address string) map[string]any {
+	for _, change := range p.ResourceChanges {
+		if change.Address == address {
+			return change.Change.AfterUnknown
+		}
+	}
+	return nil
+}
+
 // --- typed accessors over the dynamic planned_values maps ---
 
 func str(m map[string]any, key string) string {

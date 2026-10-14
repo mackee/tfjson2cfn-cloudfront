@@ -266,8 +266,11 @@ func TestVariableStaticPathDoesNotRequireUnconfiguredSigners(t *testing.T) {
 			}
 			p.Configuration.RootModule.Resources[0].Expressions = map[string]any{"ordered_cache_behavior": configs}
 			p.ResourceChanges[0].Change.AfterUnknown = map[string]any{"ordered_cache_behavior": unknown}
-			_, props := convertDistribution(r, p.configFor(r.Address))
-			err = resolveDistributionSecurity(p, r, props, nil)
+			refs := &distributionReferences{address: r.Address, unknown: p.unknownFor(r.Address), used: map[string]bool{}, index: newResourceIndex(p.PlannedValues.RootModule.Resources)}
+			_, props, err := convertDistribution(r, p.configFor(r.Address), refs)
+			if err == nil {
+				err = resolveDistributionSecurity(p, r, props, refs)
+			}
 			if (err != nil) != tc.wantError {
 				t.Fatalf("error=%v, wantError=%v", err, tc.wantError)
 			}
@@ -295,9 +298,13 @@ func TestOACHintSynthesizesS3OriginConfig(t *testing.T) {
 			origin["custom_origin_config"] = []any{map[string]any{"origin_protocol_policy": "https-only"}}
 		}
 		p.ResourceChanges[0].Change.AfterUnknown = map[string]any{"origin": []any{map[string]any{"origin_access_control_id": true}}}
-		_, props := convertDistribution(r, p.configFor(r.Address))
 		hints := map[string][]string{"origin[0].origin_access_control_id": {"aws_cloudfront_origin_access_control.storage"}}
-		if err := resolveDistributionSecurity(p, r, props, hints); err != nil {
+		refs := &distributionReferences{address: r.Address, unknown: p.unknownFor(r.Address), hints: hints, used: map[string]bool{}, index: newResourceIndex(p.PlannedValues.RootModule.Resources)}
+		_, props, err := convertDistribution(r, p.configFor(r.Address), refs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := resolveDistributionSecurity(p, r, props, refs); err != nil {
 			t.Fatal(err)
 		}
 		out := mapValue(mapValue(props, "DistributionConfig"), "Origins").Content[0]

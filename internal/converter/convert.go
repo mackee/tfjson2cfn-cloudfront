@@ -34,7 +34,6 @@ type Result struct {
 type resourceConverter func(r plannedResource, cfg map[string]any) (cfnType string, properties *yaml.Node)
 
 var converters = map[string]resourceConverter{
-	"aws_cloudfront_distribution":            convertDistribution,
 	"aws_cloudfront_function":                convertFunction,
 	"aws_cloudfront_key_value_store":         convertKeyValueStore,
 	"aws_cloudfront_cache_policy":            convertCachePolicy,
@@ -58,7 +57,8 @@ func Convert(data []byte, opts Options) (*Result, error) {
 		res.Warnings = append(res.Warnings, "child modules are not yet traversed; only root-module resources are converted")
 	}
 
-	if err := validateReferenceHints(p, opts.References); err != nil {
+	index := newResourceIndex(p.PlannedValues.RootModule.Resources)
+	if err := validateReferenceHints(index, opts.References); err != nil {
 		return nil, err
 	}
 	resources := newMapping()
@@ -72,7 +72,7 @@ func Convert(data []byte, opts Options) (*Result, error) {
 			continue // silently ignore non-CloudFront resources
 		}
 		conv, ok := converters[r.Type]
-		if !ok {
+		if !ok && r.Type != "aws_cloudfront_distribution" {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("skipping %s: %s is not supported yet", r.Address, r.Type))
 			continue
 		}
@@ -81,12 +81,22 @@ func Convert(data []byte, opts Options) (*Result, error) {
 			return nil, fmt.Errorf("logical ID %q for %s collides with %s", id, r.Address, prev)
 		}
 		seen[id] = r.Address
-		cfnType, props := conv(r, p.configFor(r.Address))
-		restorePolicyReferences(props, p.PlannedValues.RootModule.Resources)
+		var cfnType string
+		var props *yaml.Node
 		if r.Type == "aws_cloudfront_distribution" {
-			if err := resolveDistributionSecurity(p, r, props, opts.References[r.Address]); err != nil {
+			references := &distributionReferences{address: r.Address, unknown: p.unknownFor(r.Address), hints: opts.References[r.Address], used: map[string]bool{}, index: index}
+			var err error
+			cfnType, props, err = convertDistribution(r, p.configFor(r.Address), references)
+			if err != nil {
 				return nil, err
 			}
+			restorePolicyReferences(props, p.PlannedValues.RootModule.Resources)
+			if err := resolveDistributionSecurity(p, r, props, references); err != nil {
+				return nil, err
+			}
+		} else {
+			cfnType, props = conv(r, p.configFor(r.Address))
+			restorePolicyReferences(props, p.PlannedValues.RootModule.Resources)
 		}
 		resources.set(id, resourceNode(cfnType, props))
 		count++
