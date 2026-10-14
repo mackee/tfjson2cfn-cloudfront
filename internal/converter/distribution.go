@@ -296,6 +296,10 @@ func functionAssociations(b, bc map[string]any, path string, unknown map[string]
 		if containsUnknown(marker["function_arn"]) && !isUnknown {
 			return nil, fmt.Errorf("%s: invalid unknown marker for %s", refs.address, fieldPath)
 		}
+		configTarget, err := unambiguousFunctionTarget(cfgByEvent[event], refs.index)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %s: %w", refs.address, fieldPath, err)
+		}
 		var arn *yaml.Node
 		if known := str(fa, "function_arn"); known != "" {
 			match, ambiguous := refs.index.functionByARN(known)
@@ -303,24 +307,19 @@ func functionAssociations(b, bc map[string]any, path string, unknown map[string]
 				return nil, fmt.Errorf("%s: ambiguous managed function ARN for %s", refs.address, fieldPath)
 			}
 			if match != nil {
-				configTarget, err := configuredFunctionTarget(cfgByEvent[event], refs.index)
-				if err != nil {
-					return nil, fmt.Errorf("%s: %s: %w", refs.address, fieldPath, err)
-				}
 				if configTarget != nil && configTarget.Address != match.Address {
 					return nil, fmt.Errorf("%s: conflicting configured function for %s", refs.address, fieldPath)
 				}
 				arn = getAttNode(resourceLogicalID(*match), "FunctionARN")
 			} else {
+				if configTarget != nil {
+					return nil, fmt.Errorf("%s: known function ARN for %s does not match configured %s", refs.address, fieldPath, configTarget.Address)
+				}
 				arn = scalar(known)
 			}
 		} else {
 			if !isUnknown {
 				return nil, fmt.Errorf("%s: unresolved function ARN %s (not marked unknown)", refs.address, fieldPath)
-			}
-			configTarget, err := configuredFunctionTarget(cfgByEvent[event], refs.index)
-			if err != nil {
-				return nil, fmt.Errorf("%s: %s: %w", refs.address, fieldPath, err)
 			}
 			if configTarget != nil {
 				arn = getAttNode(resourceLogicalID(*configTarget), "FunctionARN")
@@ -343,9 +342,6 @@ func functionAssociations(b, bc map[string]any, path string, unknown map[string]
 				return nil, fmt.Errorf("%s: unresolved function ARN %s; supply --references with an exact resource address", refs.address, fieldPath)
 			}
 		}
-		if arn.Tag == "!GetAtt" && !validManagedReference(arn, "aws_cloudfront_function", refs.index, "!GetAtt", ".FunctionARN") {
-			return nil, fmt.Errorf("%s: function ARN target for %s is not emitted", refs.address, fieldPath)
-		}
 		fm := newMapping()
 		fm.set("EventType", scalar(event))
 		fm.set("FunctionARN", arn)
@@ -354,39 +350,12 @@ func functionAssociations(b, bc map[string]any, path string, unknown map[string]
 	return sequence(nodes...), nil
 }
 
-func configuredFunctionTarget(cfg map[string]any, index *resourceIndex) (*plannedResource, error) {
-	raw := cfg["function_arn"]
-	if raw == nil {
-		return nil, nil
+func unambiguousFunctionTarget(cfg map[string]any, index *resourceIndex) (*plannedResource, error) {
+	candidates, unrelated, err := functionReferenceCandidates(cfg)
+	if err != nil || unrelated || len(candidates) != 1 {
+		return nil, err
 	}
-	expr, ok := raw.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("invalid configured function expression")
-	}
-	references, ok := expr["references"].([]any)
-	if expr["references"] != nil && !ok {
-		return nil, fmt.Errorf("invalid configured function references")
-	}
-	var target *plannedResource
-	for _, raw := range references {
-		address, ok := raw.(string)
-		if !ok {
-			return nil, fmt.Errorf("invalid configured function reference")
-		}
-		ref := parseCloudFrontReference(address)
-		if ref == nil || ref.resourceType != "aws_cloudfront_function" || ref.attr != "arn" {
-			continue
-		}
-		match := index.findManagedResource(ref.resourceType+"."+ref.name, ref.resourceType)
-		if match == nil {
-			return nil, fmt.Errorf("configured function %s is not emitted", address)
-		}
-		if target != nil && target.Address != match.Address {
-			return nil, fmt.Errorf("ambiguous configured function references")
-		}
-		target = match
-	}
-	return target, nil
+	return index.findManagedResource(candidates[0], "aws_cloudfront_function"), nil
 }
 
 func lambdaAssociations(b map[string]any) *yaml.Node {

@@ -116,7 +116,7 @@ func TestKnownSignerAndOACIDs(t *testing.T) {
 					m.set("OriginAccessControlId", scalar(id))
 				}
 				n := m.emptyNode()
-				restorePolicyReferences(n, resources)
+				restorePolicyReferences(n, newResourceIndex(resources))
 				got := n.Content[1]
 				if typ == "aws_cloudfront_key_group" {
 					got = got.Content[0]
@@ -217,14 +217,15 @@ func TestFormalDynamicPlanUnknownPolicies(t *testing.T) {
 
 func TestPartiallyUnknownSignerListPreservesKnownElements(t *testing.T) {
 	resources := []plannedResource{{Mode: "managed", Type: "aws_cloudfront_key_group", Name: "signers", Values: map[string]any{"id": "owned"}}}
+	index := newResourceIndex(resources)
 	n := sequence(refNode("AwsCloudfrontKeyGroupSigners"))
-	if retainsKnownGroups(n, []any{"external", nil}, resources) {
+	if retainsKnownGroups(n, []any{"external", nil}, index) {
 		t.Fatal("external signer silently discarded")
 	}
-	if retainsKnownGroups(n, []any{"owned", nil}, resources) {
+	if retainsKnownGroups(n, []any{"owned", nil}, index) {
 		t.Fatal("unknown signer silently discarded")
 	}
-	if !retainsKnownGroups(n, []any{"owned"}, resources) {
+	if !retainsKnownGroups(n, []any{"owned"}, index) {
 		t.Fatal("managed signer not recognized")
 	}
 }

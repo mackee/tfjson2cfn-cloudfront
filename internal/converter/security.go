@@ -163,7 +163,7 @@ func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, r
 				node := mapValue(output, spec.property)
 				if field == "trusted_key_groups" {
 					planned := blocks(r.Values, block.terraform)
-					if index < len(planned) && !retainsKnownGroups(node, planned[index][field], p.PlannedValues.RootModule.Resources) {
+					if index < len(planned) && !retainsKnownGroups(node, planned[index][field], refs.index) {
 						return fmt.Errorf("%s: %s would discard known trusted key groups", r.Address, path)
 					}
 				}
@@ -204,7 +204,7 @@ func validManagedReference(n *yaml.Node, typ string, index *resourceIndex, tag, 
 
 // A hint or recovered dependency must not discard known elements of a partially
 // unknown signer list. External elements cannot be represented by managed hints.
-func retainsKnownGroups(n *yaml.Node, value any, resources []plannedResource) bool {
+func retainsKnownGroups(n *yaml.Node, value any, index *resourceIndex) bool {
 	values, ok := value.([]any)
 	if !ok {
 		return true
@@ -223,10 +223,8 @@ func retainsKnownGroups(n *yaml.Node, value any, resources []plannedResource) bo
 				found = true
 			}
 			if child.Tag == "!Ref" {
-				for _, r := range resources {
-					if r.Mode == "managed" && r.Type == "aws_cloudfront_key_group" && str(r.Values, "id") == id && resourceLogicalID(r) == child.Value {
-						found = true
-					}
+				if r := index.resourceByID("aws_cloudfront_key_group", id); r != nil && resourceLogicalID(*r) == child.Value {
+					found = true
 				}
 			}
 		}

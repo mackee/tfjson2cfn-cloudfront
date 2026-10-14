@@ -31,17 +31,25 @@ type Result struct {
 // resourceConverter renders one Terraform resource into a CloudFormation
 // (Type, Properties) pair. cfg is the resource's configuration expressions,
 // used to recover cross-resource references.
-type resourceConverter func(r plannedResource, cfg map[string]any) (cfnType string, properties *yaml.Node)
+type resourceConverter func(r plannedResource, cfg map[string]any, refs *distributionReferences) (cfnType string, properties *yaml.Node, err error)
+
+func simpleConverter(convert func(plannedResource, map[string]any) (string, *yaml.Node)) resourceConverter {
+	return func(r plannedResource, cfg map[string]any, _ *distributionReferences) (string, *yaml.Node, error) {
+		typ, props := convert(r, cfg)
+		return typ, props, nil
+	}
+}
 
 var converters = map[string]resourceConverter{
-	"aws_cloudfront_function":                convertFunction,
-	"aws_cloudfront_key_value_store":         convertKeyValueStore,
-	"aws_cloudfront_cache_policy":            convertCachePolicy,
-	"aws_cloudfront_origin_request_policy":   convertOriginRequestPolicy,
-	"aws_cloudfront_response_headers_policy": convertResponseHeadersPolicy,
-	"aws_cloudfront_public_key":              convertPublicKey,
-	"aws_cloudfront_key_group":               convertKeyGroup,
-	"aws_cloudfront_origin_access_control":   convertOriginAccessControl,
+	"aws_cloudfront_distribution":            convertDistribution,
+	"aws_cloudfront_function":                simpleConverter(convertFunction),
+	"aws_cloudfront_key_value_store":         simpleConverter(convertKeyValueStore),
+	"aws_cloudfront_cache_policy":            simpleConverter(convertCachePolicy),
+	"aws_cloudfront_origin_request_policy":   simpleConverter(convertOriginRequestPolicy),
+	"aws_cloudfront_response_headers_policy": simpleConverter(convertResponseHeadersPolicy),
+	"aws_cloudfront_public_key":              simpleConverter(convertPublicKey),
+	"aws_cloudfront_key_group":               simpleConverter(convertKeyGroup),
+	"aws_cloudfront_origin_access_control":   simpleConverter(convertOriginAccessControl),
 }
 
 // Convert reads `terraform show -json` output and returns a CloudFormation
@@ -72,7 +80,7 @@ func Convert(data []byte, opts Options) (*Result, error) {
 			continue // silently ignore non-CloudFront resources
 		}
 		conv, ok := converters[r.Type]
-		if !ok && r.Type != "aws_cloudfront_distribution" {
+		if !ok {
 			res.Warnings = append(res.Warnings, fmt.Sprintf("skipping %s: %s is not supported yet", r.Address, r.Type))
 			continue
 		}
@@ -81,22 +89,16 @@ func Convert(data []byte, opts Options) (*Result, error) {
 			return nil, fmt.Errorf("logical ID %q for %s collides with %s", id, r.Address, prev)
 		}
 		seen[id] = r.Address
-		var cfnType string
-		var props *yaml.Node
+		references := &distributionReferences{address: r.Address, unknown: p.unknownFor(r.Address), hints: opts.References[r.Address], used: map[string]bool{}, index: index}
+		cfnType, props, err := conv(r, p.configFor(r.Address), references)
+		if err != nil {
+			return nil, err
+		}
+		restorePolicyReferences(props, index)
 		if r.Type == "aws_cloudfront_distribution" {
-			references := &distributionReferences{address: r.Address, unknown: p.unknownFor(r.Address), hints: opts.References[r.Address], used: map[string]bool{}, index: index}
-			var err error
-			cfnType, props, err = convertDistribution(r, p.configFor(r.Address), references)
-			if err != nil {
-				return nil, err
-			}
-			restorePolicyReferences(props, p.PlannedValues.RootModule.Resources)
 			if err := resolveDistributionSecurity(p, r, props, references); err != nil {
 				return nil, err
 			}
-		} else {
-			cfnType, props = conv(r, p.configFor(r.Address))
-			restorePolicyReferences(props, p.PlannedValues.RootModule.Resources)
 		}
 		resources.set(id, resourceNode(cfnType, props))
 		count++

@@ -93,6 +93,63 @@ func refFromExpr(expr map[string]any, field string) *reference {
 	return parseReference(refs)
 }
 
+// functionReferenceCandidates keeps explicit .arn selections separate from
+// their bare resource/collection ancestors. Other dependencies make the
+// expression ambiguous: Terraform's references list is not an expression AST.
+func functionReferenceCandidates(cfg map[string]any) ([]string, bool, error) {
+	raw := cfg["function_arn"]
+	if raw == nil {
+		return nil, false, nil
+	}
+	expr, ok := raw.(map[string]any)
+	if !ok {
+		return nil, false, fmt.Errorf("invalid configured function expression")
+	}
+	refs, ok := expr["references"].([]any)
+	if expr["references"] != nil && !ok {
+		return nil, false, fmt.Errorf("invalid configured function references")
+	}
+	selected := map[string]bool{}
+	var bare []string
+	unrelated := false
+	for _, raw := range refs {
+		address, ok := raw.(string)
+		if !ok {
+			return nil, false, fmt.Errorf("invalid configured function reference")
+		}
+		ref := parseCloudFrontReference(address)
+		if ref == nil || ref.resourceType != "aws_cloudfront_function" {
+			unrelated = true
+			continue
+		}
+		switch ref.attr {
+		case "arn":
+			selected[ref.resourceType+"."+ref.name] = true
+		case "":
+			bare = append(bare, ref.resourceType+"."+ref.name)
+		default:
+			unrelated = true
+		}
+	}
+	for _, ancestor := range bare {
+		matched := false
+		for target := range selected {
+			if target == ancestor || strings.HasPrefix(target, ancestor+"[") {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			unrelated = true
+		}
+	}
+	var candidates []string
+	for address := range selected {
+		candidates = append(candidates, address)
+	}
+	return candidates, unrelated, nil
+}
+
 // resolve turns a reference into the CloudFormation intrinsic that yields the
 // same value. CloudFront resources expose their id via Ref and their ARN via a
 // GetAtt, with a couple of resource-specific attribute names.
@@ -178,7 +235,7 @@ func resourceLogicalID(r plannedResource) string {
 // A local/each expression may hide a resource reference in configuration.
 // Restore known IDs only when the expected resource type matches uniquely.
 // External and ambiguous IDs remain literal values.
-func restorePolicyReferences(n *yaml.Node, resources []plannedResource) {
+func restorePolicyReferences(n *yaml.Node, index *resourceIndex) {
 	if n == nil {
 		return
 	}
@@ -188,34 +245,25 @@ func restorePolicyReferences(n *yaml.Node, resources []plannedResource) {
 			value := n.Content[i+1]
 			if n.Content[i].Value == "TrustedKeyGroups" && value.Kind == yaml.SequenceNode {
 				for j, item := range value.Content {
-					value.Content[j] = restoreIDReference(item, resources, "aws_cloudfront_key_group")
+					value.Content[j] = restoreIDReference(item, index, "aws_cloudfront_key_group")
 				}
 			}
 			if typ, ok := policyTypes[n.Content[i].Value]; ok && value.Kind == yaml.ScalarNode && value.Tag == "!!str" {
-				n.Content[i+1] = restoreIDReference(value, resources, typ)
+				n.Content[i+1] = restoreIDReference(value, index, typ)
 			}
 		}
 	}
 	for _, child := range n.Content {
-		restorePolicyReferences(child, resources)
+		restorePolicyReferences(child, index)
 	}
 }
 
 // restoreIDReference replaces only a nonempty, uniquely matched managed ID.
-func restoreIDReference(value *yaml.Node, resources []plannedResource, typ string) *yaml.Node {
+func restoreIDReference(value *yaml.Node, index *resourceIndex, typ string) *yaml.Node {
 	if value.Kind != yaml.ScalarNode || value.Tag != "!!str" || value.Value == "" {
 		return value
 	}
-	var match *plannedResource
-	for i := range resources {
-		r := &resources[i]
-		if r.Mode == "managed" && r.Type == typ && str(r.Values, "id") == value.Value {
-			if match != nil {
-				return value
-			}
-			match = r
-		}
-	}
+	match := index.resourceByID(typ, value.Value)
 	if match != nil {
 		return refNode(resourceLogicalID(*match))
 	}
