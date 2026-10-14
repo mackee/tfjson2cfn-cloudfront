@@ -6,7 +6,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type distributionReferences struct {
+// conversionContext carries per-resource plan state that converters may need:
+// after_unknown markers, explicit reference hints, and the emitted-resource
+// index. Only the distribution converter currently consumes it.
+type conversionContext struct {
 	address string
 	unknown map[string]any
 	hints   map[string][]string
@@ -17,7 +20,7 @@ type distributionReferences struct {
 // convertDistribution renders aws_cloudfront_distribution as
 // AWS::CloudFront::Distribution. Terraform's flat resource body is nested under
 // DistributionConfig, and default/empty attributes are omitted.
-func convertDistribution(r plannedResource, cfg map[string]any, refs *distributionReferences) (string, *yaml.Node, error) {
+func convertDistribution(r plannedResource, cfg map[string]any, refs *conversionContext) (string, *yaml.Node, error) {
 	v := r.Values
 	dc := newMapping()
 
@@ -101,7 +104,7 @@ func convertDistribution(r plannedResource, cfg map[string]any, refs *distributi
 	return "AWS::CloudFront::Distribution", props.emptyNode(), nil
 }
 
-func unknownBehavior(refs *distributionReferences, block string, index int) map[string]any {
+func unknownBehavior(refs *conversionContext, block string, index int) map[string]any {
 	if refs == nil {
 		return nil
 	}
@@ -185,7 +188,7 @@ func originNode(o, oc map[string]any) *yaml.Node {
 	return m.emptyNode()
 }
 
-func cacheBehaviorNode(b, bc map[string]any, ordered bool, path string, unknown map[string]any, refs *distributionReferences) (*yaml.Node, error) {
+func cacheBehaviorNode(b, bc map[string]any, ordered bool, path string, unknown map[string]any, refs *conversionContext) (*yaml.Node, error) {
 	m := newMapping()
 	if ordered {
 		m.set("PathPattern", scalar(str(b, "path_pattern")))
@@ -241,7 +244,7 @@ func policyField(b, bc map[string]any, field string) *yaml.Node {
 	return nil
 }
 
-func functionAssociations(b, bc map[string]any, path string, unknown map[string]any, refs *distributionReferences) (*yaml.Node, error) {
+func functionAssociations(b, bc map[string]any, path string, unknown map[string]any, refs *conversionContext) (*yaml.Node, error) {
 	raw := b["function_association"]
 	fas := blocks(b, "function_association")
 	if raw != nil {
@@ -252,12 +255,12 @@ func functionAssociations(b, bc map[string]any, path string, unknown map[string]
 	}
 	unknownRaw := unknown["function_association"]
 	unknownFas, ok := unknownRaw.([]any)
-	if unknownRaw != nil && !ok || len(unknownFas) > len(fas) {
+	if (unknownRaw != nil && !ok) || len(unknownFas) > len(fas) {
 		return nil, fmt.Errorf("%s: unresolved %s.function_association block", refs.address, path)
 	}
 	for i, marker := range unknownFas {
 		if marker != nil {
-			if _, ok := marker.(map[string]any); !ok || i >= len(fas) {
+			if _, ok := marker.(map[string]any); !ok {
 				return nil, fmt.Errorf("%s: unresolved %s.function_association[%d] block", refs.address, path, i)
 			}
 		}
@@ -331,7 +334,7 @@ func functionAssociations(b, bc map[string]any, path string, unknown map[string]
 				}
 				target := refs.index.findManagedResource(targets[0], "aws_cloudfront_function")
 				if target == nil {
-					return nil, fmt.Errorf("%s: %s target %s must be a managed aws_cloudfront_function in the plan", refs.address, fieldPath, targets[0])
+					return nil, fmt.Errorf("%s: %s target %s must be a managed aws_cloudfront_function emitted from this plan with a unique logical ID", refs.address, fieldPath, targets[0])
 				}
 				if configTarget != nil && configTarget.Address != target.Address {
 					return nil, fmt.Errorf("%s: conflicting function hint for %s", refs.address, fieldPath)

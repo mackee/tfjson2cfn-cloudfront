@@ -31,10 +31,10 @@ type Result struct {
 // resourceConverter renders one Terraform resource into a CloudFormation
 // (Type, Properties) pair. cfg is the resource's configuration expressions,
 // used to recover cross-resource references.
-type resourceConverter func(r plannedResource, cfg map[string]any, refs *distributionReferences) (cfnType string, properties *yaml.Node, err error)
+type resourceConverter func(r plannedResource, cfg map[string]any, refs *conversionContext) (cfnType string, properties *yaml.Node, err error)
 
 func simpleConverter(convert func(plannedResource, map[string]any) (string, *yaml.Node)) resourceConverter {
-	return func(r plannedResource, cfg map[string]any, _ *distributionReferences) (string, *yaml.Node, error) {
+	return func(r plannedResource, cfg map[string]any, _ *conversionContext) (string, *yaml.Node, error) {
 		typ, props := convert(r, cfg)
 		return typ, props, nil
 	}
@@ -69,6 +69,7 @@ func Convert(data []byte, opts Options) (*Result, error) {
 	if err := validateReferenceHints(index, opts.References); err != nil {
 		return nil, err
 	}
+	unknown := p.afterUnknownByAddress()
 	resources := newMapping()
 	seen := map[string]string{}
 	count := 0
@@ -89,7 +90,7 @@ func Convert(data []byte, opts Options) (*Result, error) {
 			return nil, fmt.Errorf("logical ID %q for %s collides with %s", id, r.Address, prev)
 		}
 		seen[id] = r.Address
-		references := &distributionReferences{address: r.Address, unknown: p.unknownFor(r.Address), hints: opts.References[r.Address], used: map[string]bool{}, index: index}
+		references := &conversionContext{address: r.Address, unknown: unknown[r.Address], hints: opts.References[r.Address], used: map[string]bool{}, index: index}
 		cfnType, props, err := conv(r, p.configFor(r.Address), references)
 		if err != nil {
 			return nil, err

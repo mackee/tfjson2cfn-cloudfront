@@ -81,13 +81,16 @@ func (p *plan) configFor(address string) map[string]any {
 	return nil
 }
 
-func (p *plan) unknownFor(address string) map[string]any {
+// afterUnknownByAddress indexes each resource change's after_unknown markers
+// by address, so per-resource lookups do not rescan resource_changes.
+func (p *plan) afterUnknownByAddress() map[string]map[string]any {
+	unknown := make(map[string]map[string]any, len(p.ResourceChanges))
 	for _, change := range p.ResourceChanges {
-		if change.Address == address {
-			return change.Change.AfterUnknown
+		if _, exists := unknown[change.Address]; !exists {
+			unknown[change.Address] = change.Change.AfterUnknown
 		}
 	}
-	return nil
+	return unknown
 }
 
 // --- typed accessors over the dynamic planned_values maps ---

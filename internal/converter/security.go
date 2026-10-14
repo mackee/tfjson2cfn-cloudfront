@@ -68,7 +68,7 @@ func validateReferenceHints(index *resourceIndex, hints map[string]map[string][]
 
 // The plan's dependency list is not an expression AST. Never infer an instance
 // relationship from a bare collection reference and each.key.
-func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, refs *distributionReferences) error {
+func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, refs *conversionContext) error {
 	unknown := refs.unknown
 	hints := refs.hints
 	used := refs.used
@@ -167,7 +167,7 @@ func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, r
 						return fmt.Errorf("%s: %s would discard known trusted key groups", r.Address, path)
 					}
 				}
-				if !validManagedReference(node, spec.resourceType, refs.index, "!Ref", "") {
+				if !validManagedReference(node, spec.resourceType, refs.index) {
 					return fmt.Errorf("%s: unresolved security reference %s; supply --references with exact resource addresses", r.Address, path)
 				}
 			}
@@ -181,7 +181,7 @@ func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, r
 	return nil
 }
 
-func validManagedReference(n *yaml.Node, typ string, index *resourceIndex, tag, suffix string) bool {
+func validManagedReference(n *yaml.Node, typ string, index *resourceIndex) bool {
 	if n == nil {
 		return false
 	}
@@ -190,16 +190,16 @@ func validManagedReference(n *yaml.Node, typ string, index *resourceIndex, tag, 
 			return false
 		}
 		for _, child := range n.Content {
-			if !validManagedReference(child, typ, index, tag, suffix) {
+			if !validManagedReference(child, typ, index) {
 				return false
 			}
 		}
 		return true
 	}
-	if n.Tag != tag || strings.TrimSpace(n.Value) == "" || !strings.HasSuffix(n.Value, suffix) {
+	if n.Tag != "!Ref" || strings.TrimSpace(n.Value) == "" {
 		return false
 	}
-	return index.hasLogicalID(typ, strings.TrimSuffix(n.Value, suffix))
+	return index.hasLogicalID(typ, n.Value)
 }
 
 // A hint or recovered dependency must not discard known elements of a partially

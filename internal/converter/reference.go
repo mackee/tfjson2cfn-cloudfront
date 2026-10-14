@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -143,10 +144,11 @@ func functionReferenceCandidates(cfg map[string]any) ([]string, bool, error) {
 			unrelated = true
 		}
 	}
-	var candidates []string
+	candidates := make([]string, 0, len(selected))
 	for address := range selected {
 		candidates = append(candidates, address)
 	}
+	sort.Strings(candidates)
 	return candidates, unrelated, nil
 }
 
