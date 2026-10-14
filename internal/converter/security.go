@@ -192,12 +192,122 @@ func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, h
 			}
 		}
 	}
+	if err := resolveFunctionARNs(p, r, dc, unknown, hints, used); err != nil {
+		return err
+	}
 	for path := range hints {
 		if !used[path] {
-			return fmt.Errorf("%s: unused reference hint %s (only unknown security fields accept hints)", r.Address, path)
+			return fmt.Errorf("%s: unused reference hint %s (only unknown security fields and function ARNs accept hints)", r.Address, path)
 		}
 	}
 	return nil
+}
+
+// Function associations are required to have an ARN. Dynamic blocks can hide
+// their configuration expressions, so resolve each unknown by its exact planned
+// behavior and association index rather than by event type or another behavior.
+func resolveFunctionARNs(p *plan, r plannedResource, dc *yaml.Node, unknown map[string]any, hints map[string][]string, used map[string]bool) error {
+	for _, block := range []struct{ terraform, property string }{
+		{"default_cache_behavior", "DefaultCacheBehavior"}, {"ordered_cache_behavior", "CacheBehaviors"},
+	} {
+		planned := blocks(r.Values, block.terraform)
+		unknownBlocks, _ := unknown[block.terraform].([]any)
+		for index, behavior := range planned {
+			output := mapValue(dc, block.property)
+			if block.terraform == "ordered_cache_behavior" {
+				if output == nil || output.Kind != yaml.SequenceNode || index >= len(output.Content) {
+					return fmt.Errorf("%s: unresolved %s[%d] block", r.Address, block.terraform, index)
+				}
+				output = output.Content[index]
+			}
+			path := fmt.Sprintf("%s[%d].function_association", block.terraform, index)
+			var unknownAssociations []any
+			if index < len(unknownBlocks) {
+				if fields, ok := unknownBlocks[index].(map[string]any); ok {
+					raw := fields["function_association"]
+					unknownAssociations, _ = raw.([]any)
+					if containsUnknown(raw) && unknownAssociations == nil {
+						return fmt.Errorf("%s: unresolved %s block", r.Address, path)
+					}
+				}
+			}
+			associations := blocks(behavior, "function_association")
+			if raw := behavior["function_association"]; raw != nil {
+				list, ok := raw.([]any)
+				if !ok || len(list) != len(associations) {
+					return fmt.Errorf("%s: invalid %s block", r.Address, path)
+				}
+			}
+			outputAssociations := mapValue(output, "FunctionAssociations")
+			if len(unknownAssociations) > len(associations) {
+				return fmt.Errorf("%s: unresolved %s block", r.Address, path)
+			}
+			for associationIndex, raw := range unknownAssociations {
+				if containsUnknown(raw) {
+					if _, ok := raw.(map[string]any); !ok || associationIndex >= len(associations) {
+						return fmt.Errorf("%s: unresolved %s[%d] block", r.Address, path, associationIndex)
+					}
+				}
+			}
+			for associationIndex, association := range associations {
+				fieldPath := fmt.Sprintf("%s[%d].function_arn", path, associationIndex)
+				if str(association, "event_type") == "" {
+					return fmt.Errorf("%s: missing event type for %s", r.Address, fieldPath)
+				}
+				if raw, exists := association["function_arn"]; exists && raw != nil {
+					if _, ok := raw.(string); !ok {
+						return fmt.Errorf("%s: invalid function ARN for %s", r.Address, fieldPath)
+					}
+				}
+				if outputAssociations == nil || outputAssociations.Kind != yaml.SequenceNode || associationIndex >= len(outputAssociations.Content) {
+					return fmt.Errorf("%s: unresolved function ARN %s", r.Address, fieldPath)
+				}
+				item := outputAssociations.Content[associationIndex]
+				arn := mapValue(item, "FunctionARN")
+				// A resolved value is authoritative, including an external ARN.
+				if str(association, "function_arn") != "" {
+					continue
+				}
+				if targets, exists := hints[fieldPath]; exists {
+					used[fieldPath] = true
+					if len(targets) != 1 {
+						return fmt.Errorf("%s: %s requires exactly one managed reference", r.Address, fieldPath)
+					}
+					var match *plannedResource
+					for i := range p.PlannedValues.RootModule.Resources {
+						candidate := &p.PlannedValues.RootModule.Resources[i]
+						if candidate.Address == targets[0] && candidate.Mode == "managed" && candidate.Type == "aws_cloudfront_function" {
+							match = candidate
+							break
+						}
+					}
+					if match == nil {
+						return fmt.Errorf("%s: %s target %s must be a managed aws_cloudfront_function in the plan", r.Address, fieldPath, targets[0])
+					}
+					arn = getAttNode(resourceLogicalID(*match), "FunctionARN")
+					putValue(item, "FunctionARN", arn)
+				}
+				if !validFunctionARN(arn, p.PlannedValues.RootModule.Resources) {
+					return fmt.Errorf("%s: unresolved function ARN %s; supply --references with an exact resource address", r.Address, fieldPath)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func validFunctionARN(n *yaml.Node, resources []plannedResource) bool {
+	if n == nil || n.Tag != "!GetAtt" || !strings.HasSuffix(n.Value, ".FunctionARN") {
+		return false
+	}
+	id := strings.TrimSuffix(n.Value, ".FunctionARN")
+	matches := 0
+	for _, r := range resources {
+		if r.Mode == "managed" && r.Type == "aws_cloudfront_function" && resourceLogicalID(r) == id {
+			matches++
+		}
+	}
+	return matches == 1
 }
 
 func validManagedReference(n *yaml.Node, typ string, resources []plannedResource) bool {

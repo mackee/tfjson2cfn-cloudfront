@@ -47,3 +47,23 @@ func TestReferenceFileAndFailureDoesNotWriteTemplate(t *testing.T) {
 		t.Fatal("invalid hints accepted")
 	}
 }
+
+func TestUnknownFunctionARNFailureDoesNotClobberOutput(t *testing.T) {
+	dir := t.TempDir()
+	output := filepath.Join(dir, "template.json")
+	const existing = "existing template\n"
+	if err := os.WriteFile(output, []byte(existing), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c := cli{Input: "../../internal/converter/testdata/unknown_function_associations.json", Output: output, Format: "json"}
+	if err := run(c); err == nil {
+		t.Fatal("unresolved function ARN accepted")
+	}
+	got, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != existing {
+		t.Fatalf("failed conversion changed output: %q", got)
+	}
+}

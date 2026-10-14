@@ -58,7 +58,7 @@ $ tfjson2cfn-cloudfront --input plan.json --output template.yaml --format yaml
 | --- | --- | --- |
 | `-i, --input` | `-` (stdin) | Path to `terraform show -json` output |
 | `-o, --output` | `-` (stdout) | Path to write the CloudFormation template |
-| `--references` | none | JSON file with explicit references for unknown distribution security fields |
+| `--references` | none | JSON file with explicit references for unknown distribution security fields and function ARNs |
 | `--format` | `yaml` | Output format: `yaml` or `json` |
 | `--log-level` | `info` | `debug\|info\|warn\|error` (written to stderr) |
 
@@ -111,7 +111,7 @@ Known policy, key group, and origin access control IDs are restored to reference
 
 Terraform's [JSON format](https://developer.hashicorp.com/terraform/internals/json-format#expression-representation) omits expressions inside `dynamic` blocks. Its `references` arrays describe dependencies rather than complete expressions: a collection reference and `each.key` do not prove which resource instance was selected. The converter does not guess instance relationships or copy a default behavior's policy to ordered behaviors.
 
-Unresolved unknown cache policy, origin request policy, response headers policy, trusted key group, and origin access control references cause conversion to fail before writing a template. An omitted optional `trusted_key_groups` field in a represented static configuration block is treated as unconfigured even if the provider marks its default as unknown. Absent dynamic block expressions do not establish that exception.
+Unresolved unknown cache policy, origin request policy, response headers policy, trusted key group, origin access control, and CloudFront function ARN references cause conversion to fail before writing a template. Every function association requires a `FunctionARN`. An omitted optional `trusted_key_groups` field in a represented static configuration block is treated as unconfigured even if the provider marks its default as unknown. Absent dynamic block expressions do not establish that exception.
 
 To resolve missing information, supply an explicit JSON file:
 
@@ -123,6 +123,9 @@ To resolve missing information, supply an explicit JSON file:
     ],
     "ordered_cache_behavior[0].response_headers_policy_id": [
       "aws_cloudfront_response_headers_policy.headers[\"alpha\"]"
+    ],
+    "ordered_cache_behavior[0].function_association[0].function_arn": [
+      "aws_cloudfront_function.viewer"
     ]
   }
 }
@@ -132,7 +135,7 @@ To resolve missing information, supply an explicit JSON file:
 $ tfjson2cfn-cloudfront -i plan.json --references references.json -o template.yaml
 ```
 
-Keys are exact root distribution addresses, then Terraform attribute paths. Block indexes refer to the order in `planned_values` (`default_cache_behavior[0]`, `ordered_cache_behavior[N]`, or `origin[N]`). Each scalar field requires one exact managed resource address of the appropriate type; `trusted_key_groups` accepts a complete nonempty list of key group addresses. Hints only apply to unknown fields; missing resources, wrong types, duplicate targets, unknown distributions, and unused paths are errors. Known empty signer lists cannot be overridden. The caller owns the correctness of these explicit relationships and must regenerate or review hints when block order changes.
+Keys are exact root distribution addresses, then Terraform attribute paths. Block indexes refer to the order in `planned_values` (`default_cache_behavior[0]`, `ordered_cache_behavior[N]`, or `origin[N]`). Function paths are `default_cache_behavior[0].function_association[N].function_arn` or `ordered_cache_behavior[N].function_association[N].function_arn`; both indexes refer to the order in `planned_values`. Each scalar field requires one exact managed resource address of the appropriate type; a function ARN target must be an `aws_cloudfront_function`. `trusted_key_groups` accepts a complete nonempty list of key group addresses. Hints only apply to unknown fields; missing resources, wrong types, duplicate targets, unknown distributions, and unused paths are errors. Known values and known empty signer lists cannot be overridden. The caller owns the correctness of these explicit relationships and must regenerate or review hints when block order changes.
 
 Logical IDs are derived deterministically from the Terraform resource's full address — the resource type and local name PascalCased on underscores (`aws_cloudfront_distribution.assets` → `AwsCloudfrontDistributionAssets`, `aws_cloudfront_cache_policy.long_cache` → `AwsCloudfrontCachePolicyLongCache`), so the output is stable across runs. Alphanumeric string instance keys use a `Key` marker followed by their original case; other string keys use a `Hash` suffix. Numeric indexes use `Index`, keeping string and numeric instance keys distinct. Because the type is part of the ID, resources of different kinds that share a local name (e.g. an origin access control, a key group and a public key all named `tools`) each get a distinct logical ID instead of colliding.
 

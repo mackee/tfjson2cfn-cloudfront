@@ -16,7 +16,8 @@ type Options struct {
 	// Format is "yaml" (default) or "json".
 	Format string
 	// References maps an exact distribution address and Terraform attribute path
-	// to explicit managed resource addresses. Only unknown security fields accept hints.
+	// to explicit managed resource addresses. Only unknown security fields and
+	// function ARNs accept hints.
 	References map[string]map[string][]string
 }
 

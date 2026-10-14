@@ -215,10 +215,10 @@ func functionAssociations(b, bc map[string]any) *yaml.Node {
 		et := str(fa, "event_type")
 		fm := newMapping()
 		fm.set("EventType", scalar(et))
-		if ref := refFromExpr(matchConfigBlock(cfgFas, "event_type", et), "function_arn"); ref != nil {
-			fm.set("FunctionARN", ref.resolve())
-		} else if s := str(fa, "function_arn"); s != "" {
+		if s := str(fa, "function_arn"); s != "" {
 			fm.set("FunctionARN", scalar(s))
+		} else if ref := refFromExpr(matchConfigBlock(cfgFas, "event_type", et), "function_arn"); ref != nil {
+			fm.set("FunctionARN", ref.resolve())
 		}
 		nodes = append(nodes, fm.emptyNode())
 	}
