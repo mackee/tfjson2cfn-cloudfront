@@ -38,7 +38,7 @@ func TestKnownPolicyAndOACIDsTakePrecedenceOverDependencies(t *testing.T) {
 					if tc.ambiguous {
 						resources = append(resources, plannedResource{Mode: "managed", Type: spec.resourceType, Name: "duplicate", Values: map[string]any{"id": "selected-id"}})
 					}
-					restorePolicyReferences(node, resources)
+					restorePolicyReferences(node, newResourceIndex(resources))
 					got := mapValue(node, spec.property)
 					if got == nil || got.Tag != tc.tag || got.Value != tc.want {
 						t.Fatalf("got %#v, want %s %s", got, tc.tag, tc.want)
@@ -111,5 +111,34 @@ func TestIndexedListReferencesResolveToInstanceLogicalIDs(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestFunctionReferenceCandidatesRespectAncestorsAndOtherDependencies(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		refs       []any
+		want       string
+		unresolved bool
+	}{
+		{"indexed ancestor", []any{`aws_cloudfront_function.viewer["alpha"].arn`, `aws_cloudfront_function.viewer["alpha"]`, `aws_cloudfront_function.viewer`}, `aws_cloudfront_function.viewer["alpha"]`, false},
+		{"unrelated bare", []any{`aws_cloudfront_function.viewer.arn`, `aws_cloudfront_function.response`}, `aws_cloudfront_function.viewer`, true},
+		{"variable", []any{`var.choice`, `aws_cloudfront_function.viewer.arn`}, `aws_cloudfront_function.viewer`, true},
+		{"collection only", []any{`aws_cloudfront_function.viewer`, `each.key`}, "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := map[string]any{"function_arn": map[string]any{"references": tc.refs}}
+			got, unresolved, err := functionReferenceCandidates(cfg)
+			wantCount := 0
+			if tc.want != "" {
+				wantCount = 1
+			}
+			if err != nil || unresolved != tc.unresolved || len(got) != wantCount {
+				t.Fatalf("got %v, unresolved=%v, err=%v", got, unresolved, err)
+			}
+			if tc.want != "" && got[0] != tc.want {
+				t.Fatalf("got %v, want %s", got, tc.want)
+			}
+		})
 	}
 }

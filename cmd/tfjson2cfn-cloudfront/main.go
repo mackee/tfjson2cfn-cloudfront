@@ -19,7 +19,7 @@ import (
 var version = "dev"
 
 type cli struct {
-	References string           `kong:"name='references',help='Path to JSON reference hints for unknown distribution security fields.'"`
+	References string           `kong:"name='references',help='Path to JSON reference hints for unknown distribution security fields and function ARNs.'"`
 	Input      string           `kong:"name='input',short='i',default='-',help='Path to terraform show -json output (- for stdin).'"`
 	Output     string           `kong:"name='output',short='o',default='-',help='Path to write the CloudFormation template (- for stdout).'"`
 	Format     string           `kong:"name='format',default='yaml',enum='yaml,json',help='Output format: yaml or json.'"`

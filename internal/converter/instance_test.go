@@ -107,7 +107,7 @@ func TestResolvedPolicyReferencesAreTypedAndUnambiguous(t *testing.T) {
 		n := newMapping()
 		n.set(tc.field, scalar(tc.value))
 		node := n.emptyNode()
-		restorePolicyReferences(node, resources)
+		restorePolicyReferences(node, newResourceIndex(resources))
 		got := node.Content[1]
 		if tc.wantRef {
 			if got.Tag != "!Ref" || got.Value != "AwsCloudfrontResponseHeadersPolicyHeaders" {
@@ -121,7 +121,7 @@ func TestResolvedPolicyReferencesAreTypedAndUnambiguous(t *testing.T) {
 	n := newMapping()
 	n.set("ResponseHeadersPolicyId", scalar("owned"))
 	node := n.emptyNode()
-	restorePolicyReferences(node, resources)
+	restorePolicyReferences(node, newResourceIndex(resources))
 	if node.Content[1].Value != "owned" {
 		t.Fatal("ambiguous policy resolved arbitrarily")
 	}

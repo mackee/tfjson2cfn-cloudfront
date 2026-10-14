@@ -1,11 +1,26 @@
 package converter
 
-import "gopkg.in/yaml.v3"
+import (
+	"fmt"
+
+	"gopkg.in/yaml.v3"
+)
+
+// conversionContext carries per-resource plan state that converters may need:
+// after_unknown markers, explicit reference hints, and the emitted-resource
+// index. Only the distribution converter currently consumes it.
+type conversionContext struct {
+	address string
+	unknown map[string]any
+	hints   map[string][]string
+	used    map[string]bool
+	index   *resourceIndex
+}
 
 // convertDistribution renders aws_cloudfront_distribution as
 // AWS::CloudFront::Distribution. Terraform's flat resource body is nested under
 // DistributionConfig, and default/empty attributes are omitted.
-func convertDistribution(r plannedResource, cfg map[string]any) (string, *yaml.Node) {
+func convertDistribution(r plannedResource, cfg map[string]any, refs *conversionContext) (string, *yaml.Node, error) {
 	v := r.Values
 	dc := newMapping()
 
@@ -42,7 +57,11 @@ func convertDistribution(r plannedResource, cfg map[string]any) (string, *yaml.N
 	dc.set("Origins", sequence(origins...))
 
 	if db := firstBlock(v, "default_cache_behavior"); db != nil {
-		dc.set("DefaultCacheBehavior", cacheBehaviorNode(db, firstBlock(cfg, "default_cache_behavior"), false))
+		behavior, err := cacheBehaviorNode(db, firstBlock(cfg, "default_cache_behavior"), false, "default_cache_behavior[0]", unknownBehavior(refs, "default_cache_behavior", 0), refs)
+		if err != nil {
+			return "", nil, err
+		}
+		dc.set("DefaultCacheBehavior", behavior)
 	}
 
 	orderedCfg := blocks(cfg, "ordered_cache_behavior")
@@ -50,7 +69,12 @@ func convertDistribution(r plannedResource, cfg map[string]any) (string, *yaml.N
 	plannedBehaviors := blocks(v, "ordered_cache_behavior")
 	for index, b := range plannedBehaviors {
 		bc := matchBehaviorConfig(orderedCfg, plannedBehaviors, index)
-		behaviors = append(behaviors, cacheBehaviorNode(b, bc, true))
+		path := fmt.Sprintf("ordered_cache_behavior[%d]", index)
+		behavior, err := cacheBehaviorNode(b, bc, true, path, unknownBehavior(refs, "ordered_cache_behavior", index), refs)
+		if err != nil {
+			return "", nil, err
+		}
+		behaviors = append(behaviors, behavior)
 	}
 	dc.set("CacheBehaviors", sequence(behaviors...))
 
@@ -77,7 +101,16 @@ func convertDistribution(r plannedResource, cfg map[string]any) (string, *yaml.N
 
 	props := newMapping()
 	props.set("DistributionConfig", dc.emptyNode())
-	return "AWS::CloudFront::Distribution", props.emptyNode()
+	return "AWS::CloudFront::Distribution", props.emptyNode(), nil
+}
+
+func unknownBehavior(refs *conversionContext, block string, index int) map[string]any {
+	list, _ := refs.unknown[block].([]any)
+	if index >= len(list) {
+		return nil
+	}
+	fields, _ := list[index].(map[string]any)
+	return fields
 }
 
 func originNode(o, oc map[string]any) *yaml.Node {
@@ -152,7 +185,7 @@ func originNode(o, oc map[string]any) *yaml.Node {
 	return m.emptyNode()
 }
 
-func cacheBehaviorNode(b, bc map[string]any, ordered bool) *yaml.Node {
+func cacheBehaviorNode(b, bc map[string]any, ordered bool, path string, unknown map[string]any, refs *conversionContext) (*yaml.Node, error) {
 	m := newMapping()
 	if ordered {
 		m.set("PathPattern", scalar(str(b, "path_pattern")))
@@ -183,13 +216,17 @@ func cacheBehaviorNode(b, bc map[string]any, ordered bool) *yaml.Node {
 	if t := numPtr(b, "max_ttl"); t != nil && *t != 0 {
 		m.set("MaxTTL", scalar(*t))
 	}
-	m.set("FunctionAssociations", functionAssociations(b, bc))
+	functions, err := functionAssociations(b, bc, path, unknown, refs)
+	if err != nil {
+		return nil, err
+	}
+	m.set("FunctionAssociations", functions)
 	m.set("LambdaFunctionAssociations", lambdaAssociations(b))
 	m.set("TrustedKeyGroups", trustedKeyGroups(b, bc))
 	if fv := firstBlock(b, "forwarded_values"); fv != nil {
 		m.set("ForwardedValues", forwardedValuesNode(fv))
 	}
-	return m.emptyNode()
+	return m.emptyNode(), nil
 }
 
 // policyField resolves a *_policy_id attribute to a Ref when it points at a
@@ -204,25 +241,121 @@ func policyField(b, bc map[string]any, field string) *yaml.Node {
 	return nil
 }
 
-func functionAssociations(b, bc map[string]any) *yaml.Node {
+func functionAssociations(b, bc map[string]any, path string, unknown map[string]any, refs *conversionContext) (*yaml.Node, error) {
+	raw := b["function_association"]
 	fas := blocks(b, "function_association")
-	if len(fas) == 0 {
-		return nil
-	}
-	cfgFas := blocks(bc, "function_association")
-	var nodes []*yaml.Node
-	for _, fa := range fas {
-		et := str(fa, "event_type")
-		fm := newMapping()
-		fm.set("EventType", scalar(et))
-		if ref := refFromExpr(matchConfigBlock(cfgFas, "event_type", et), "function_arn"); ref != nil {
-			fm.set("FunctionARN", ref.resolve())
-		} else if s := str(fa, "function_arn"); s != "" {
-			fm.set("FunctionARN", scalar(s))
+	if raw != nil {
+		list, ok := raw.([]any)
+		if !ok || len(list) != len(fas) {
+			return nil, fmt.Errorf("%s: invalid %s.function_association block", refs.address, path)
 		}
+	}
+	unknownRaw := unknown["function_association"]
+	unknownFas, ok := unknownRaw.([]any)
+	if (unknownRaw != nil && !ok) || len(unknownFas) > len(fas) {
+		return nil, fmt.Errorf("%s: unresolved %s.function_association block", refs.address, path)
+	}
+	for i, marker := range unknownFas {
+		if marker != nil {
+			if _, ok := marker.(map[string]any); !ok {
+				return nil, fmt.Errorf("%s: unresolved %s.function_association[%d] block", refs.address, path, i)
+			}
+		}
+	}
+	if len(fas) == 0 {
+		return nil, nil
+	}
+	cfgByEvent := map[string]map[string]any{}
+	for _, cfg := range blocks(bc, "function_association") {
+		if event, ok := configConst(cfg, "event_type").(string); ok && event != "" {
+			if _, duplicate := cfgByEvent[event]; duplicate {
+				return nil, fmt.Errorf("%s: duplicate configured event %s in %s", refs.address, event, path)
+			}
+			cfgByEvent[event] = cfg
+		}
+	}
+	seenEvents := map[string]bool{}
+	var nodes []*yaml.Node
+	for i, fa := range fas {
+		event := str(fa, "event_type")
+		if event == "" || seenEvents[event] {
+			return nil, fmt.Errorf("%s: missing or duplicate event type in %s.function_association", refs.address, path)
+		}
+		seenEvents[event] = true
+		fieldPath := fmt.Sprintf("%s.function_association[%s].function_arn", path, event)
+		if value := fa["function_arn"]; value != nil {
+			if _, ok := value.(string); !ok {
+				return nil, fmt.Errorf("%s: invalid function ARN for %s", refs.address, fieldPath)
+			}
+		}
+		var marker map[string]any
+		if i < len(unknownFas) {
+			marker, _ = unknownFas[i].(map[string]any)
+		}
+		isUnknown := marker["function_arn"] == true
+		if containsUnknown(marker["function_arn"]) && !isUnknown {
+			return nil, fmt.Errorf("%s: invalid unknown marker for %s", refs.address, fieldPath)
+		}
+		configTarget, err := unambiguousFunctionTarget(cfgByEvent[event], refs.index)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %s: %w", refs.address, fieldPath, err)
+		}
+		var arn *yaml.Node
+		if known := str(fa, "function_arn"); known != "" {
+			match, ambiguous := refs.index.functionByARN(known)
+			if ambiguous {
+				return nil, fmt.Errorf("%s: ambiguous managed function ARN for %s", refs.address, fieldPath)
+			}
+			if match != nil {
+				if configTarget != nil && configTarget.Address != match.Address {
+					return nil, fmt.Errorf("%s: conflicting configured function for %s", refs.address, fieldPath)
+				}
+				arn = getAttNode(resourceLogicalID(*match), "FunctionARN")
+			} else {
+				if configTarget != nil {
+					return nil, fmt.Errorf("%s: known function ARN for %s does not match configured %s", refs.address, fieldPath, configTarget.Address)
+				}
+				arn = scalar(known)
+			}
+		} else {
+			if !isUnknown {
+				return nil, fmt.Errorf("%s: unresolved function ARN %s (not marked unknown)", refs.address, fieldPath)
+			}
+			if configTarget != nil {
+				arn = getAttNode(resourceLogicalID(*configTarget), "FunctionARN")
+			}
+			if targets, exists := refs.hints[fieldPath]; exists {
+				refs.used[fieldPath] = true
+				if len(targets) != 1 {
+					return nil, fmt.Errorf("%s: %s requires exactly one managed reference", refs.address, fieldPath)
+				}
+				target := refs.index.findManagedResource(targets[0], "aws_cloudfront_function")
+				if target == nil {
+					return nil, fmt.Errorf("%s: %s target %s must be a managed aws_cloudfront_function emitted from this plan with a unique logical ID", refs.address, fieldPath, targets[0])
+				}
+				if configTarget != nil && configTarget.Address != target.Address {
+					return nil, fmt.Errorf("%s: conflicting function hint for %s", refs.address, fieldPath)
+				}
+				arn = getAttNode(resourceLogicalID(*target), "FunctionARN")
+			}
+			if arn == nil {
+				return nil, fmt.Errorf("%s: unresolved function ARN %s; supply --references with an exact resource address", refs.address, fieldPath)
+			}
+		}
+		fm := newMapping()
+		fm.set("EventType", scalar(event))
+		fm.set("FunctionARN", arn)
 		nodes = append(nodes, fm.emptyNode())
 	}
-	return sequence(nodes...)
+	return sequence(nodes...), nil
+}
+
+func unambiguousFunctionTarget(cfg map[string]any, index *resourceIndex) (*plannedResource, error) {
+	candidates, unrelated, err := functionReferenceCandidates(cfg)
+	if err != nil || unrelated || len(candidates) != 1 {
+		return nil, err
+	}
+	return index.findManagedResource(candidates[0], "aws_cloudfront_function"), nil
 }
 
 func lambdaAssociations(b map[string]any) *yaml.Node {

@@ -1,0 +1,191 @@
+{
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_function.viewer",
+          "mode": "managed",
+          "type": "aws_cloudfront_function",
+          "name": "viewer",
+          "values": {
+            "name": "viewer",
+            "runtime": "cloudfront-js-2.0",
+            "comment": "",
+            "code": "function handler(event) { return event.request; }"
+          }
+        },
+        {
+          "address": "aws_cloudfront_function.response",
+          "mode": "managed",
+          "type": "aws_cloudfront_function",
+          "name": "response",
+          "values": {
+            "name": "response",
+            "runtime": "cloudfront-js-2.0",
+            "comment": "",
+            "code": "function handler(event) { return event.request; }"
+          }
+        },
+        {
+          "address": "aws_cloudfront_distribution.example",
+          "mode": "managed",
+          "type": "aws_cloudfront_distribution",
+          "name": "example",
+          "values": {
+            "enabled": true,
+            "origin": [
+              {
+                "origin_id": "static",
+                "domain_name": "example.com",
+                "custom_origin_config": [
+                  {
+                    "http_port": 80,
+                    "https_port": 443,
+                    "origin_protocol_policy": "https-only",
+                    "origin_ssl_protocols": [
+                      "TLSv1.2"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "default_cache_behavior": [
+              {
+                "target_origin_id": "static",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "function_association": [
+                  {
+                    "event_type": "viewer-request"
+                  }
+                ]
+              }
+            ],
+            "ordered_cache_behavior": [
+              {
+                "target_origin_id": "static",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "function_association": [
+                  {
+                    "event_type": "viewer-request"
+                  },
+                  {
+                    "event_type": "viewer-response"
+                  }
+                ],
+                "path_pattern": "/api/*"
+              },
+              {
+                "target_origin_id": "static",
+                "viewer_protocol_policy": "redirect-to-https",
+                "allowed_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "cached_methods": [
+                  "GET",
+                  "HEAD"
+                ],
+                "function_association": [
+                  {
+                    "event_type": "viewer-request"
+                  },
+                  {
+                    "event_type": "viewer-response"
+                  }
+                ],
+                "path_pattern": "/images/*"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_cloudfront_distribution.example",
+          "type": "aws_cloudfront_distribution",
+          "name": "example",
+          "expressions": {
+            "default_cache_behavior": [
+              {
+                "function_association": [
+                  {
+                    "event_type": {
+                      "constant_value": "viewer-request"
+                    },
+                    "function_arn": {
+                      "references": [
+                        "aws_cloudfront_function.viewer.arn",
+                        "aws_cloudfront_function.viewer"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "resource_changes": [
+    {
+      "address": "aws_cloudfront_distribution.example",
+      "change": {
+        "after_unknown": {
+          "default_cache_behavior": [
+            {
+              "function_association": [
+                {
+                  "function_arn": true
+                }
+              ]
+            }
+          ],
+          "ordered_cache_behavior": [
+            {
+              "function_association": [
+                {
+                  "function_arn": true
+                },
+                {
+                  "function_arn": true
+                }
+              ]
+            },
+            {
+              "function_association": [
+                {
+                  "function_arn": true
+                },
+                {
+                  "function_arn": true
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

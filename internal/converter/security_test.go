@@ -116,7 +116,7 @@ func TestKnownSignerAndOACIDs(t *testing.T) {
 					m.set("OriginAccessControlId", scalar(id))
 				}
 				n := m.emptyNode()
-				restorePolicyReferences(n, resources)
+				restorePolicyReferences(n, newResourceIndex(resources))
 				got := n.Content[1]
 				if typ == "aws_cloudfront_key_group" {
 					got = got.Content[0]
@@ -217,14 +217,15 @@ func TestFormalDynamicPlanUnknownPolicies(t *testing.T) {
 
 func TestPartiallyUnknownSignerListPreservesKnownElements(t *testing.T) {
 	resources := []plannedResource{{Mode: "managed", Type: "aws_cloudfront_key_group", Name: "signers", Values: map[string]any{"id": "owned"}}}
+	index := newResourceIndex(resources)
 	n := sequence(refNode("AwsCloudfrontKeyGroupSigners"))
-	if retainsKnownGroups(n, []any{"external", nil}, resources) {
+	if retainsKnownGroups(n, []any{"external", nil}, index) {
 		t.Fatal("external signer silently discarded")
 	}
-	if retainsKnownGroups(n, []any{"owned", nil}, resources) {
+	if retainsKnownGroups(n, []any{"owned", nil}, index) {
 		t.Fatal("unknown signer silently discarded")
 	}
-	if !retainsKnownGroups(n, []any{"owned"}, resources) {
+	if !retainsKnownGroups(n, []any{"owned"}, index) {
 		t.Fatal("managed signer not recognized")
 	}
 }
@@ -266,8 +267,11 @@ func TestVariableStaticPathDoesNotRequireUnconfiguredSigners(t *testing.T) {
 			}
 			p.Configuration.RootModule.Resources[0].Expressions = map[string]any{"ordered_cache_behavior": configs}
 			p.ResourceChanges[0].Change.AfterUnknown = map[string]any{"ordered_cache_behavior": unknown}
-			_, props := convertDistribution(r, p.configFor(r.Address))
-			err = resolveDistributionSecurity(p, r, props, nil)
+			refs := &conversionContext{address: r.Address, unknown: p.afterUnknownByAddress()[r.Address], used: map[string]bool{}, index: newResourceIndex(p.PlannedValues.RootModule.Resources)}
+			_, props, err := convertDistribution(r, p.configFor(r.Address), refs)
+			if err == nil {
+				err = resolveDistributionSecurity(p, r, props, refs)
+			}
 			if (err != nil) != tc.wantError {
 				t.Fatalf("error=%v, wantError=%v", err, tc.wantError)
 			}
@@ -295,9 +299,13 @@ func TestOACHintSynthesizesS3OriginConfig(t *testing.T) {
 			origin["custom_origin_config"] = []any{map[string]any{"origin_protocol_policy": "https-only"}}
 		}
 		p.ResourceChanges[0].Change.AfterUnknown = map[string]any{"origin": []any{map[string]any{"origin_access_control_id": true}}}
-		_, props := convertDistribution(r, p.configFor(r.Address))
 		hints := map[string][]string{"origin[0].origin_access_control_id": {"aws_cloudfront_origin_access_control.storage"}}
-		if err := resolveDistributionSecurity(p, r, props, hints); err != nil {
+		refs := &conversionContext{address: r.Address, unknown: p.afterUnknownByAddress()[r.Address], hints: hints, used: map[string]bool{}, index: newResourceIndex(p.PlannedValues.RootModule.Resources)}
+		_, props, err := convertDistribution(r, p.configFor(r.Address), refs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := resolveDistributionSecurity(p, r, props, refs); err != nil {
 			t.Fatal(err)
 		}
 		out := mapValue(mapValue(props, "DistributionConfig"), "Origins").Content[0]

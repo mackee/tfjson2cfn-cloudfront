@@ -57,16 +57,9 @@ func containsUnknown(v any) bool {
 	return false
 }
 
-func validateReferenceHints(p *plan, hints map[string]map[string][]string) error {
+func validateReferenceHints(index *resourceIndex, hints map[string]map[string][]string) error {
 	for address := range hints {
-		found := false
-		for _, r := range p.PlannedValues.RootModule.Resources {
-			if r.Address == address && r.Mode == "managed" && r.Type == "aws_cloudfront_distribution" {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if index.findManagedResource(address, "aws_cloudfront_distribution") == nil {
 			return fmt.Errorf("reference hints: distribution %s is not managed in this plan", address)
 		}
 	}
@@ -75,15 +68,10 @@ func validateReferenceHints(p *plan, hints map[string]map[string][]string) error
 
 // The plan's dependency list is not an expression AST. Never infer an instance
 // relationship from a bare collection reference and each.key.
-func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, hints map[string][]string) error {
-	var unknown map[string]any
-	for _, change := range p.ResourceChanges {
-		if change.Address == r.Address {
-			unknown = change.Change.AfterUnknown
-			break
-		}
-	}
-	used := map[string]bool{}
+func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, refs *conversionContext) error {
+	unknown := refs.unknown
+	hints := refs.hints
+	used := refs.used
 	dc := mapValue(props, "DistributionConfig")
 	for _, block := range []struct{ terraform, property string }{
 		{"default_cache_behavior", "DefaultCacheBehavior"}, {"ordered_cache_behavior", "CacheBehaviors"}, {"origin", "Origins"},
@@ -156,14 +144,7 @@ func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, h
 					var nodes []*yaml.Node
 					seen := map[string]bool{}
 					for _, target := range targets {
-						var match *plannedResource
-						for i := range p.PlannedValues.RootModule.Resources {
-							candidate := &p.PlannedValues.RootModule.Resources[i]
-							if candidate.Address == target && candidate.Mode == "managed" && candidate.Type == spec.resourceType {
-								match = candidate
-								break
-							}
-						}
+						match := refs.index.findManagedResource(target, spec.resourceType)
 						if match == nil || seen[target] {
 							return fmt.Errorf("%s: %s target %s must be a distinct managed %s in the plan", r.Address, path, target, spec.resourceType)
 						}
@@ -182,11 +163,11 @@ func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, h
 				node := mapValue(output, spec.property)
 				if field == "trusted_key_groups" {
 					planned := blocks(r.Values, block.terraform)
-					if index < len(planned) && !retainsKnownGroups(node, planned[index][field], p.PlannedValues.RootModule.Resources) {
+					if index < len(planned) && !retainsKnownGroups(node, planned[index][field], refs.index) {
 						return fmt.Errorf("%s: %s would discard known trusted key groups", r.Address, path)
 					}
 				}
-				if !validManagedReference(node, spec.resourceType, p.PlannedValues.RootModule.Resources) {
+				if !validManagedReference(node, spec.resourceType, refs.index) {
 					return fmt.Errorf("%s: unresolved security reference %s; supply --references with exact resource addresses", r.Address, path)
 				}
 			}
@@ -194,13 +175,13 @@ func resolveDistributionSecurity(p *plan, r plannedResource, props *yaml.Node, h
 	}
 	for path := range hints {
 		if !used[path] {
-			return fmt.Errorf("%s: unused reference hint %s (only unknown security fields accept hints)", r.Address, path)
+			return fmt.Errorf("%s: unused reference hint %s (only unknown security fields and function ARNs accept hints)", r.Address, path)
 		}
 	}
 	return nil
 }
 
-func validManagedReference(n *yaml.Node, typ string, resources []plannedResource) bool {
+func validManagedReference(n *yaml.Node, typ string, index *resourceIndex) bool {
 	if n == nil {
 		return false
 	}
@@ -209,7 +190,7 @@ func validManagedReference(n *yaml.Node, typ string, resources []plannedResource
 			return false
 		}
 		for _, child := range n.Content {
-			if !validManagedReference(child, typ, resources) {
+			if !validManagedReference(child, typ, index) {
 				return false
 			}
 		}
@@ -218,18 +199,12 @@ func validManagedReference(n *yaml.Node, typ string, resources []plannedResource
 	if n.Tag != "!Ref" || strings.TrimSpace(n.Value) == "" {
 		return false
 	}
-	matches := 0
-	for _, r := range resources {
-		if r.Mode == "managed" && r.Type == typ && resourceLogicalID(r) == n.Value {
-			matches++
-		}
-	}
-	return matches == 1
+	return index.hasLogicalID(typ, n.Value)
 }
 
 // A hint or recovered dependency must not discard known elements of a partially
 // unknown signer list. External elements cannot be represented by managed hints.
-func retainsKnownGroups(n *yaml.Node, value any, resources []plannedResource) bool {
+func retainsKnownGroups(n *yaml.Node, value any, index *resourceIndex) bool {
 	values, ok := value.([]any)
 	if !ok {
 		return true
@@ -248,10 +223,8 @@ func retainsKnownGroups(n *yaml.Node, value any, resources []plannedResource) bo
 				found = true
 			}
 			if child.Tag == "!Ref" {
-				for _, r := range resources {
-					if r.Mode == "managed" && r.Type == "aws_cloudfront_key_group" && str(r.Values, "id") == id && resourceLogicalID(r) == child.Value {
-						found = true
-					}
+				if r := index.resourceByID("aws_cloudfront_key_group", id); r != nil && resourceLogicalID(*r) == child.Value {
+					found = true
 				}
 			}
 		}
